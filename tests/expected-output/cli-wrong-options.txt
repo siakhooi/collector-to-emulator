@@ -1,0 +1,2 @@
+usage: collector-to-mocker [-h] [-v]
+collector-to-mocker: error: unrecognized arguments: -p

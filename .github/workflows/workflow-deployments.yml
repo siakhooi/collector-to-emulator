@@ -1,0 +1,21 @@
+name: Deployment
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yaml
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      QLTY_COVERAGE_TOKEN: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+  release-assets:
+    needs: build
+    uses: ./.github/workflows/deploy-github-release-assets.yml
+    secrets:
+      TOKEN_TO_UPLOAD_ASSETS: ${{ secrets.TOKEN_TO_UPLOAD_ASSETS }}
+  # pypi:
+  #   needs: build
+  #   uses: ./.github/workflows/deploy-pypi.yml
+  #   secrets:
+  #     PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}

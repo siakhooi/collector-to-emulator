@@ -1,0 +1,7 @@
+usage: collector-to-mocker [-h] [-v]
+
+convert kafka-collector output into kafka-mocker config
+
+options:
+  -h, --help     show this help message and exit
+  -v, --version  show program's version number and exit
