@@ -1,5 +1,5 @@
 # collector-to-emulator
-convert kafka-collector output into kafka-emulator config
+convert kafka-collector jsonl output into kafka-emulator scenario yaml.
 
 ## Installation
 ```
@@ -35,7 +35,6 @@ options:
 ![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed-raw/siakhooi/collector-to-emulator?logo=github)
 ![GitHub top language](https://img.shields.io/github/languages/top/siakhooi/collector-to-emulator?logo=github)
 ![GitHub language count](https://img.shields.io/github/languages/count/siakhooi/collector-to-emulator?logo=github)
-![Lines of code](https://img.shields.io/tokei/lines/github/siakhooi/collector-to-emulator?logo=github)
 ![GitHub repo size](https://img.shields.io/github/repo-size/siakhooi/collector-to-emulator?logo=github)
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/siakhooi/collector-to-emulator?logo=github)
 
