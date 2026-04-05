@@ -1,2 +1,2 @@
-usage: collector-to-mocker [-h] [-v]
-collector-to-mocker: error: unrecognized arguments: -p
+usage: collector-to-emulator [-h] [-v]
+collector-to-emulator: error: unrecognized arguments: -p

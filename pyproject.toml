@@ -1,5 +1,5 @@
 [project]
-name = "collector_to_mocker"
+name = "collector_to_emulator"
 version = "0.0.1"
 description = "collect kafka messages from multiple topics"
 authors = [
@@ -20,17 +20,17 @@ dependencies = [
 ]
 
 [project.urls]
-homepage = "https://github.com/siakhooi/collector-to-mocker"
-repository = "https://github.com/siakhooi/collector-to-mocker"
-documentation = "https://github.com/siakhooi/collector-to-mocker/wiki"
-"Bug Tracker" = "https://github.com/siakhooi/collector-to-mocker/issues"
+homepage = "https://github.com/siakhooi/collector-to-emulator"
+repository = "https://github.com/siakhooi/collector-to-emulator"
+documentation = "https://github.com/siakhooi/collector-to-emulator/wiki"
+"Bug Tracker" = "https://github.com/siakhooi/collector-to-emulator/issues"
 
 [project.scripts]
-collector-to-mocker = 'collector_to_mocker.cli:run'
+collector-to-emulator = 'collector_to_emulator.cli:run'
 
 
 [tool.poetry]
-packages = [{include = "collector_to_mocker", from = "src"}]
+packages = [{include = "collector_to_emulator", from = "src"}]
 
 
 [tool.poetry.group.dev.dependencies]

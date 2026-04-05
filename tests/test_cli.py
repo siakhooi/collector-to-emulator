@@ -1,4 +1,4 @@
-from collector_to_mocker.cli import run
+from collector_to_emulator.cli import run
 
 import pytest
 
@@ -7,7 +7,7 @@ import pytest
 def test_run_help(monkeypatch, capsys, option_help):
     monkeypatch.setattr(
         "sys.argv",
-        ["collector-to-mocker", option_help],
+        ["collector-to-emulator", option_help],
     )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -26,7 +26,7 @@ def test_run_help(monkeypatch, capsys, option_help):
 def test_run_show_version(monkeypatch, capsys, option_version):
     monkeypatch.setattr(
         "sys.argv",
-        ["collector-to-mocker", option_version],
+        ["collector-to-emulator", option_version],
     )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -45,7 +45,7 @@ def test_run_show_version(monkeypatch, capsys, option_version):
 def test_run_wrong_options(monkeypatch, capsys, options):
     monkeypatch.setattr(
         "sys.argv",
-        ["collector-to-mocker"] + options,
+        ["collector-to-emulator"] + options,
     )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
@@ -54,8 +54,8 @@ def test_run_wrong_options(monkeypatch, capsys, options):
     assert pytest_wrapped_e.value.code == 2
 
     captured = capsys.readouterr()
-    assert "usage: collector-to-mocker [-h] [-v]" in captured.err
+    assert "usage: collector-to-emulator [-h] [-v]" in captured.err
     assert (
-        "collector-to-mocker: error: unrecognized arguments:"
+        "collector-to-emulator: error: unrecognized arguments:"
         in captured.err
     )

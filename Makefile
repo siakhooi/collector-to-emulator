@@ -1,10 +1,10 @@
 help:
 clean:
 	rm -rf dist target coverage .tox .coverage \
-	src/collector_to_mocker/__pycache__ \
+	src/collector_to_emulator/__pycache__ \
 	tests/__pycache__
 run:
-	poetry run collector-to-mocker
+	poetry run collector-to-emulator
 set-version:
 	scripts/set-version.sh
 build:
@@ -18,13 +18,15 @@ update:
 test:
 	 poetry run pytest --capture=sys \
 	 --junit-xml=coverage/test-results.xml \
-	 --cov=collector_to_mocker \
+	 --cov=collector_to_emulator \
 	 --cov-report term-missing  \
 	 --cov-report xml:coverage/coverage.xml \
 	 --cov-report html:coverage/coverage.html \
 	 --cov-report lcov:coverage/coverage.info
 
 all: clean set-version install flake8 build tox-run
+one: clean set-version install flake8 build
+	tox run -e py314
 
 release:
 	scripts/release.sh

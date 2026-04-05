@@ -9,10 +9,10 @@ def print_to_stderr_and_exit(e: Exception, exit_code: int) -> None:
 
 
 def run() -> None:
-    __version__: str = version("collector-to-mocker")
+    __version__: str = version("collector-to-emulator")
 
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
-        description="convert kafka-collector output into kafka-mocker config"
+        description="convert kafka-collector output into kafka-emulator config"
     )
 
     parser.add_argument(

@@ -1,6 +1,6 @@
-usage: collector-to-mocker [-h] [-v]
+usage: collector-to-emulator [-h] [-v]
 
-convert kafka-collector output into kafka-mocker config
+convert kafka-collector output into kafka-emulator config
 
 options:
   -h, --help     show this help message and exit
