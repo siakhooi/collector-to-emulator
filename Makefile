@@ -2,7 +2,7 @@ help:
 clean:
 	rm -rf dist target coverage .tox .coverage \
 	src/collector_to_emulator/__pycache__ \
-	tests/__pycache__
+	tests/__pycache__ .pytest_cache .venv
 run:
 	poetry run collector-to-emulator
 set-version:
@@ -11,6 +11,7 @@ build:
 	poetry build
 install:
 	poetry install
+	poetry env info
 flake8:
 	poetry run flake8
 update:
