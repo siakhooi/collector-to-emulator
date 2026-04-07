@@ -1,4 +1,5 @@
 import io
+import json
 import sys
 from pathlib import Path
 
@@ -109,8 +110,10 @@ def test_run_no_input_when_tty(monkeypatch, capsys):
 
 
 def test_run_reads_jsonl_positional(monkeypatch, tmp_path: Path, capsys):
+    monkeypatch.chdir(tmp_path)
     path = tmp_path / "in.jsonl"
-    path.write_text('{"a": 1}\n', encoding="utf-8")
+    rec = {"topic": "alpha", "value": json.dumps({"x": 1})}
+    path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
     monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
@@ -119,11 +122,15 @@ def test_run_reads_jsonl_positional(monkeypatch, tmp_path: Path, capsys):
 
     run()
     assert capsys.readouterr().err == ""
+    out = (tmp_path / "templates" / "1-alpha.json").read_text(encoding="utf-8")
+    assert json.loads(out) == {"x": 1}
 
 
 def test_run_reads_jsonl_dash_i(monkeypatch, tmp_path: Path, capsys):
+    monkeypatch.chdir(tmp_path)
     path = tmp_path / "in.jsonl"
-    path.write_text('{"a": 1}\n', encoding="utf-8")
+    rec = {"topic": "beta", "value": json.dumps({"y": 2})}
+    path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
     monkeypatch.setattr("sys.argv", ["collector-to-emulator", "-i", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
@@ -132,16 +139,21 @@ def test_run_reads_jsonl_dash_i(monkeypatch, tmp_path: Path, capsys):
 
     run()
     assert capsys.readouterr().err == ""
+    assert (tmp_path / "templates" / "1-beta.json").is_file()
 
 
-def test_run_reads_jsonl_from_stdin(monkeypatch, capsys):
+def test_run_reads_jsonl_from_stdin(monkeypatch, tmp_path: Path, capsys):
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("sys.argv", ["collector-to-emulator"])
+    rec = {"topic": "stdin", "value": json.dumps({"z": 3})}
     monkeypatch.setattr(
-        "collector_to_emulator.cli.sys.stdin", io.StringIO('{"x": 2}\n')
+        "collector_to_emulator.cli.sys.stdin",
+        io.StringIO(json.dumps(rec) + "\n"),
     )
 
     run()
     assert capsys.readouterr().err == ""
+    assert (tmp_path / "templates" / "1-stdin.json").is_file()
 
 
 def test_run_stdin_priority_over_dash_i(monkeypatch, tmp_path: Path, capsys):
@@ -159,8 +171,10 @@ def test_run_stdin_priority_over_dash_i(monkeypatch, tmp_path: Path, capsys):
 
 
 def test_run_dash_i_priority_over_positional(monkeypatch, tmp_path: Path):
+    monkeypatch.chdir(tmp_path)
     good = tmp_path / "good.jsonl"
-    good.write_text('{"ok": true}\n', encoding="utf-8")
+    rec = {"topic": "ok", "value": "true"}
+    good.write_text(json.dumps(rec) + "\n", encoding="utf-8")
     bad = tmp_path / "bad.jsonl"
     bad.write_text("not-json\n", encoding="utf-8")
     monkeypatch.setattr(
@@ -173,6 +187,46 @@ def test_run_dash_i_priority_over_positional(monkeypatch, tmp_path: Path):
     )
 
     run()
+    content = (tmp_path / "templates" / "1-ok.json").read_text(
+        encoding="utf-8"
+    )
+    assert content.strip() == "true"
+
+
+def test_run_template_padding_ten_records(monkeypatch, tmp_path: Path, capsys):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    lines = [
+        json.dumps({"topic": f"t{i}", "value": json.dumps({"n": i})})
+        for i in range(10)
+    ]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    run()
+    assert capsys.readouterr().err == ""
+    assert (tmp_path / "templates" / "01-t0.json").is_file()
+    assert (tmp_path / "templates" / "10-t9.json").is_file()
+
+
+def test_run_missing_topic_exit_code(monkeypatch, tmp_path: Path, capsys):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    path.write_text(json.dumps({"value": "{}"}) + "\n", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        run()
+    assert pytest_wrapped_e.value.code == 1
+    assert "topic" in capsys.readouterr().err
 
 
 def test_run_invalid_jsonl_exit_code(monkeypatch, tmp_path: Path, capsys):

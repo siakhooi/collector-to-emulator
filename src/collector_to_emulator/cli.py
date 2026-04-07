@@ -1,9 +1,14 @@
 import argparse
 import json
+import re
 import sys
 from collections.abc import Iterator
 from importlib.metadata import version
+from pathlib import Path
 from typing import Any, TextIO
+
+_TEMPLATES_DIR = Path("templates")
+_UNSAFE_TOPIC_CHARS = re.compile(r"[^\w\-.]+", re.UNICODE)
 
 
 def print_to_stderr_and_exit(e: Exception, exit_code: int) -> None:
@@ -20,6 +25,46 @@ def iter_jsonl_records(stream: TextIO) -> Iterator[Any]:
             yield json.loads(stripped)
         except json.JSONDecodeError as e:
             raise ValueError(f"line {line_no}: invalid JSON ({e})") from e
+
+
+def _safe_topic_filename(topic: str) -> str:
+    s = _UNSAFE_TOPIC_CHARS.sub("_", str(topic).strip())
+    s = s.strip("._")
+    return s if s else "topic"
+
+
+def _value_to_template_body(value: Any) -> str:
+    """Parse JSON-encoded string payloads; otherwise serialize as JSON text."""
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return value
+        return json.dumps(parsed, indent=2, ensure_ascii=False) + "\n"
+    return json.dumps(value, indent=2, ensure_ascii=False) + "\n"
+
+
+def write_templates_from_records(
+    records: list[Any], templates_dir: Path
+) -> None:
+    n = len(records)
+    width = max(1, len(str(n))) if n else 1
+    templates_dir.mkdir(parents=True, exist_ok=True)
+    for seq, record in enumerate(records, start=1):
+        if not isinstance(record, dict):
+            raise ValueError(
+                f"record {seq}: expected a JSON object, not "
+                f"{type(record).__name__}"
+            )
+        if "topic" not in record:
+            raise ValueError(f"record {seq}: missing required field 'topic'")
+        topic_part = _safe_topic_filename(record["topic"])
+        name = f"{seq:0{width}d}-{topic_part}.json"
+        path = templates_dir / name
+        body = _value_to_template_body(record.get("value"))
+        path.write_text(body, encoding="utf-8")
 
 
 def open_jsonl_source(args: argparse.Namespace) -> tuple[TextIO, bool]:
@@ -73,12 +118,8 @@ def run() -> None:
         return
 
     try:
-        first = True
-        for record in iter_jsonl_records(stream):
-            if not first:
-                print()
-            first = False
-            print(json.dumps(record, indent=2, ensure_ascii=False))
+        records = list(iter_jsonl_records(stream))
+        write_templates_from_records(records, _TEMPLATES_DIR)
     except ValueError as e:
         print_to_stderr_and_exit(e, 1)
         return
