@@ -1,6 +1,9 @@
 import argparse
+import json
 import sys
+from collections.abc import Iterator
 from importlib.metadata import version
+from typing import Any, TextIO
 
 
 def print_to_stderr_and_exit(e: Exception, exit_code: int) -> None:
@@ -8,18 +11,80 @@ def print_to_stderr_and_exit(e: Exception, exit_code: int) -> None:
     exit(exit_code)
 
 
+def iter_jsonl_records(stream: TextIO) -> Iterator[Any]:
+    for line_no, line in enumerate(stream, start=1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            yield json.loads(stripped)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"line {line_no}: invalid JSON ({e})") from e
+
+
+def open_jsonl_source(args: argparse.Namespace) -> tuple[TextIO, bool]:
+    """Return (stream, must_close).
+    Priority: piped stdin, then -i, then positional."""
+    if not sys.stdin.isatty():
+        return sys.stdin, False
+    if args.input_path is not None:
+        return open(args.input_path, encoding="utf-8"), True
+    if args.jsonl is not None:
+        return open(args.jsonl, encoding="utf-8"), True
+    raise ValueError(
+        "No input: pass a JSONL file, use -i PATH, or pipe JSONL into stdin."
+    )
+
+
 def run() -> None:
     __version__: str = version("collector-to-emulator")
 
     parser: argparse.ArgumentParser = argparse.ArgumentParser(
+        prog="collector-to-emulator",
         description="convert kafka-collector output into kafka-emulator config"
     )
 
     parser.add_argument(
         "-v", "--version", action="version", version=f"%(prog)s {__version__}"
     )
+    parser.add_argument(
+        "-i",
+        "--input",
+        dest="input_path",
+        metavar="PATH",
+        help="JSONL file (ignored when stdin is piped)",
+    )
+    parser.add_argument(
+        "jsonl",
+        nargs="?",
+        metavar="JSONL",
+        help="JSONL file (if stdin is a TTY and -i omitted)",
+    )
 
-    parser.parse_args()
+    args = parser.parse_args()
+
+    try:
+        stream, must_close = open_jsonl_source(args)
+    except OSError as e:
+        print_to_stderr_and_exit(e, 1)
+        return
+    except ValueError as e:
+        print_to_stderr_and_exit(e, 2)
+        return
+
+    try:
+        first = True
+        for record in iter_jsonl_records(stream):
+            if not first:
+                print()
+            first = False
+            print(json.dumps(record, indent=2, ensure_ascii=False))
+    except ValueError as e:
+        print_to_stderr_and_exit(e, 1)
+        return
+    finally:
+        if must_close:
+            stream.close()
 
 
 if __name__ == "__main__":
