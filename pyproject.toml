@@ -48,3 +48,14 @@ testpaths = [
     "tests"
 ]
 addopts = "-ra -q"
+
+[tool.coverage.run]
+source = [
+    "collector_to_emulator",
+]
+
+[tool.coverage.paths]
+source = [
+  "src/collector_to_emulator",
+  ".tox/*/lib/python*/site-packages/collector_to_emulator"
+]
