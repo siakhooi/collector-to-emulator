@@ -1,11 +1,13 @@
-usage: collector-to-emulator [-h] [-v] [-i PATH] [JSONL]
+usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [JSONL]
 
 convert kafka-collector output into kafka-emulator config
 
 positional arguments:
-  JSONL             JSONL file (if stdin is a TTY and -i omitted)
+  JSONL                 JSONL file (if stdin is a TTY and -i omitted)
 
 options:
-  -h, --help        show this help message and exit
-  -v, --version     show program's version number and exit
-  -i, --input PATH  JSONL file (ignored when stdin is piped)
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -i, --input PATH      JSONL file (ignored when stdin is piped)
+  -t, --template-dir DIR
+                        template output directory (default: templates/)

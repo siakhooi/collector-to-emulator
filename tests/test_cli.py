@@ -87,7 +87,7 @@ def test_run_wrong_options(monkeypatch, capsys, options):
 
     captured = capsys.readouterr()
     assert (
-        "usage: collector-to-emulator [-h] [-v] [-i PATH] [JSONL]"
+        "usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [JSONL]"
         in captured.err
     )
     assert (
@@ -140,6 +140,30 @@ def test_run_reads_jsonl_dash_i(monkeypatch, tmp_path: Path, capsys):
     run()
     assert capsys.readouterr().err == ""
     assert (tmp_path / "templates" / "1-beta.json").is_file()
+
+
+@pytest.mark.parametrize("flag", ["-t", "--template-dir"])
+def test_run_template_dir_override(
+    monkeypatch, tmp_path: Path, capsys, flag: str
+):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    rec = {"topic": "x", "value": "{}"}
+    path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    custom = tmp_path / "my-templates"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["collector-to-emulator", "-i", str(path), flag, str(custom)],
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    run()
+    assert capsys.readouterr().err == ""
+    assert (custom / "1-x.json").is_file()
+    assert not (tmp_path / "templates").exists()
 
 
 def test_run_reads_jsonl_from_stdin(monkeypatch, tmp_path: Path, capsys):

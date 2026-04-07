@@ -3,13 +3,15 @@ clean:
 	rm -rf dist target coverage .tox .coverage \
 	src/collector_to_emulator/__pycache__ \
 	tests/__pycache__ .pytest_cache .venv
-run: run-2
+run: run-t
 run-1:
 	poetry run collector-to-emulator testings/collector.jsonl
 run-2:
 	poetry run collector-to-emulator -i testings/collector.jsonl
 run-3:
 	poetry run collector-to-emulator < testings/collector.jsonl
+run-t:
+	poetry run collector-to-emulator -i testings/collector.jsonl -t templates123
 set-version:
 	scripts/set-version.sh
 build:

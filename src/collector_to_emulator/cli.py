@@ -100,6 +100,13 @@ def run() -> None:
         help="JSONL file (ignored when stdin is piped)",
     )
     parser.add_argument(
+        "-t",
+        "--template-dir",
+        dest="template_dir",
+        metavar="DIR",
+        help="template output directory (default: templates/)",
+    )
+    parser.add_argument(
         "jsonl",
         nargs="?",
         metavar="JSONL",
@@ -119,7 +126,12 @@ def run() -> None:
 
     try:
         records = list(iter_jsonl_records(stream))
-        write_templates_from_records(records, _TEMPLATES_DIR)
+        templates_dir = (
+            Path(args.template_dir)
+            if args.template_dir is not None
+            else _TEMPLATES_DIR
+        )
+        write_templates_from_records(records, templates_dir)
     except ValueError as e:
         print_to_stderr_and_exit(e, 1)
         return

@@ -1,6 +1,6 @@
 coverage/
 .python-version
-templates/
+templates*/
 
 # Created by https://www.toptal.com/developers/gitignore/api/eclipse,visualstudiocode,netbeans,intellij,pycharm,pycharm+all,pycharm+iml,pydev,python,pythonvanilla
 # Edit at https://www.toptal.com/developers/gitignore?templates=eclipse,visualstudiocode,netbeans,intellij,pycharm,pycharm+all,pycharm+iml,pydev,python,pythonvanilla
