@@ -124,6 +124,38 @@ def test_run_reads_jsonl_positional(monkeypatch, tmp_path: Path, capsys):
     assert capsys.readouterr().err == ""
     out = (tmp_path / "templates" / "1-alpha.json").read_text(encoding="utf-8")
     assert json.loads(out) == {"x": 1}
+    scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
+    assert 'body: "templates/1-alpha.json"' in scenario
+    assert 'topic: "alpha"' in scenario
+    assert "key:" not in scenario
+    assert "headers:" not in scenario
+    assert 'bootstrap_servers: "kafka-test:9092"' in scenario
+
+
+def test_run_scenario_includes_key_and_headers_when_set(
+    monkeypatch, tmp_path: Path, capsys
+):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    rec = {
+        "topic": "t1",
+        "key": "k1",
+        "headers": {"h1": "v1"},
+        "value": "{}",
+    }
+    path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    run()
+    assert capsys.readouterr().err == ""
+    scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
+    assert 'key: "k1"' in scenario
+    assert "headers:" in scenario
+    assert 'h1: "v1"' in scenario
 
 
 def test_run_reads_jsonl_dash_i(monkeypatch, tmp_path: Path, capsys):
@@ -251,6 +283,27 @@ def test_run_missing_topic_exit_code(monkeypatch, tmp_path: Path, capsys):
         run()
     assert pytest_wrapped_e.value.code == 1
     assert "topic" in capsys.readouterr().err
+
+
+def test_run_empty_jsonl_writes_empty_scenario(
+    monkeypatch, tmp_path: Path, capsys
+):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "empty.jsonl"
+    path.write_text("\n", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    run()
+    assert capsys.readouterr().err == ""
+    assert (
+        (tmp_path / "scenario.yaml")
+        .read_text(encoding="utf-8")
+        .endswith("steps: []\n")
+    )
 
 
 def test_run_invalid_jsonl_exit_code(monkeypatch, tmp_path: Path, capsys):
