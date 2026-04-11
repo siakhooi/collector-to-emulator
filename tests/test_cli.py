@@ -48,10 +48,19 @@ def test_write_scenario_output_writes_to_injected_stdout() -> None:
     assert buf.getvalue() == "name: x\nsteps: []\n"
 
 
-def test_main_returns_exit_usage_when_sleep_round_invalid(capsys) -> None:
-    args = build_parser().parse_args(["-r", "0"])
-    assert main(args, streams=CliStreams(stdin_is_tty=True)) == EXIT_USAGE
-    assert "sleep round" in capsys.readouterr().err
+def test_parser_rejects_non_positive_sleep_round(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        build_parser().parse_args(["-r", "0"])
+    assert exc_info.value.code == EXIT_USAGE
+    assert "at least 1" in capsys.readouterr().err
+
+
+def test_parser_rejects_non_int_sleep_round(capsys) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        build_parser().parse_args(["-r", "nope"])
+    assert exc_info.value.code == EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "invalid int value" in err
 
 
 def test_main_returns_exit_ok_without_system_exit(
@@ -457,15 +466,16 @@ def test_run_invalid_sleep_round_exit_code(monkeypatch, capsys):
 
 
 def test_run_forwards_stderr_to_buffer(monkeypatch) -> None:
+    """Errors from ``main`` (after parse) use ``CliStreams.stderr``."""
     err_buf = io.StringIO()
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
     with pytest.raises(SystemExit) as exc_info:
-        run(argv=["-r", "0"], streams=CliStreams(stderr=err_buf))
+        run(argv=[], streams=CliStreams(stderr=err_buf))
     assert exc_info.value.code == EXIT_USAGE
-    assert "at least 1" in err_buf.getvalue()
+    assert "No input:" in err_buf.getvalue()
 
 
 def test_run_timestamps_emit_sleep_when_gap_over_500ms(

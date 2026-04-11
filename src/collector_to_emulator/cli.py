@@ -99,6 +99,21 @@ def open_jsonl_source(
     )
 
 
+def _parse_sleep_round_ms(value: str) -> int:
+    """``argparse`` ``type=`` for ``-r`` / ``--round``: positive integer ms."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid int value: {value!r}"
+        ) from None
+    if n < 1:
+        raise argparse.ArgumentTypeError(
+            "sleep round step must be at least 1"
+        )
+    return n
+
+
 def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
     """CLI argument definitions. ``pkg_version`` defaults to installed package
     metadata."""
@@ -174,7 +189,7 @@ def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
         "--round",
         dest="sleep_round_ms",
         metavar="MS",
-        type=int,
+        type=_parse_sleep_round_ms,
         default=SLEEP_ROUND_MS,
         help=(
             "round each sleep duration to the nearest multiple of this many "
@@ -241,13 +256,6 @@ def main(
     """Run conversion pipeline; return ``EXIT_OK``, ``EXIT_ERROR``, or
     ``EXIT_USAGE``."""
     s = streams if streams is not None else CliStreams()
-    if args.sleep_round_ms < 1:
-        _print_error(
-            ValueError("sleep round step must be at least 1"),
-            stderr=s.stderr,
-        )
-        return EXIT_USAGE
-
     try:
         stream, must_close = open_jsonl_source(
             args, stdin=s.stdin, stdin_is_tty=s.stdin_is_tty
