@@ -157,6 +157,21 @@ def _yaml_headers_block(headers: dict[str, Any], indent: int) -> list[str]:
     return lines
 
 
+def _yaml_send_step(record: dict[str, Any], *, body_path: str) -> list[str]:
+    """Lines for one ``send:`` step (topic, body template path, optional key,
+    headers)."""
+    topic_s = _yaml_scalar(record["topic"])
+    step_lines = [
+        "  - send:",
+        f"      topic: {topic_s}",
+        f"      body: {json.dumps(body_path)}",
+    ]
+    if not _is_empty_key(record.get("key")):
+        step_lines.append(f"      key: {_yaml_scalar(record.get('key'))}")
+    step_lines.extend(_yaml_headers_block(_record_headers(record), indent=6))
+    return step_lines
+
+
 def build_scenario_yaml(
     records: list[dict[str, Any]],
     templates_dir: Path,
@@ -190,20 +205,10 @@ def build_scenario_yaml(
                     lines.append("\n".join(_yaml_sleep_step(sleep_ms)))
                     base_ms = ts_ms
         basename = _template_basename(seq, width, record["topic"])
-        body = _body_path_for_template(
+        body_path = _body_path_for_template(
             templates_dir, basename, relative_to=relative_to
         )
-        topic_s = _yaml_scalar(record["topic"])
-        headers = _record_headers(record)
-        step_lines = [
-            "  - send:",
-            f"      topic: {topic_s}",
-            f"      body: {json.dumps(body)}",
-        ]
-        if not _is_empty_key(record.get("key")):
-            step_lines.append(f"      key: {_yaml_scalar(record.get('key'))}")
-        step_lines.extend(_yaml_headers_block(headers, indent=6))
-        lines.append("\n".join(step_lines))
+        lines.append("\n".join(_yaml_send_step(record, body_path=body_path)))
     return "\n".join(lines) + "\n"
 
 
