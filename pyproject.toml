@@ -1,16 +1,38 @@
 [project]
 name = "collector_to_emulator"
-version = "0.0.1"
-description = "collect kafka messages from multiple topics"
+version = "0.1.0"
+description = (
+    "Convert kafka-collector JSONL output into kafka-emulator scenario YAML"
+)
 authors = [
     {name = "Siak Hooi",email = "siakhooi@gmail.com"}
 ]
-keywords = [ "kafka" ]
+keywords = [
+    "kafka",
+    "kafka-emulator",
+    "jsonl",
+    "yaml",
+    "converter",
+    "cli",
+    "testing",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: MIT License",
-    "Topic :: Utilities"
+    "Topic :: Software Development :: Testing",
+    "Topic :: Text Processing",
+    "Topic :: Utilities",
 ]
 
 license = {text = "MIT"}

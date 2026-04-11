@@ -14,8 +14,8 @@ jobs:
     uses: ./.github/workflows/deploy-github-release-assets.yml
     secrets:
       TOKEN_TO_UPLOAD_ASSETS: ${{ secrets.TOKEN_TO_UPLOAD_ASSETS }}
-  # pypi:
-  #   needs: build
-  #   uses: ./.github/workflows/deploy-pypi.yml
-  #   secrets:
-  #     PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+  pypi:
+    needs: build
+    uses: ./.github/workflows/deploy-pypi.yml
+    secrets:
+      PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
