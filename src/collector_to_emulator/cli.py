@@ -307,5 +307,10 @@ def run(
         sys.exit(code)
 
 
-if __name__ == "__main__":
+def _cli_main() -> None:
+    """Entry point when executed as ``python -m collector_to_emulator.cli``."""
     run()
+
+
+if __name__ == "__main__":
+    _cli_main()

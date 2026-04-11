@@ -1,8 +1,13 @@
 import io
 import json
+import os
+import subprocess
 import sys
 from importlib.metadata import version as pkg_version
 from pathlib import Path
+from unittest.mock import patch
+
+import collector_to_emulator.cli as cli_module
 
 from collector_to_emulator.cli import (
     CliStreams,
@@ -17,6 +22,9 @@ from collector_to_emulator.cli import (
 )
 
 import pytest
+
+# Real ``_scenario_writes_to_file`` (autouse test fixture replaces it later).
+_ORIGINAL_SCENARIO_WRITES_TO_FILE = cli_module._scenario_writes_to_file
 
 
 def test_build_parser_prog_and_parsed_args() -> None:
@@ -97,9 +105,7 @@ def test_parser_rejects_non_positive_sleep_gap_or_cap(
 
 
 @pytest.mark.parametrize("flag", ["-g", "--sleep-gap", "-c", "--sleep-cap"])
-def test_parser_rejects_non_int_sleep_gap_or_cap(
-    capsys, flag: str
-) -> None:
+def test_parser_rejects_non_int_sleep_gap_or_cap(capsys, flag: str) -> None:
     with pytest.raises(SystemExit) as exc_info:
         build_parser().parse_args([flag, "nope"])
     assert exc_info.value.code == EXIT_USAGE
@@ -132,6 +138,136 @@ def test_open_jsonl_source_injected_stdin_piped() -> None:
     assert stream is stdin
     assert must_close is False
     assert stream.read() == payload
+
+
+def test_main_injected_stdout_with_explicit_tty_false_write_scenario_to_buffer(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Covers ``_resolve_scenario_stdout_tty`` when ``stdout_is_tty`` is
+    set."""
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    path.write_text(
+        json.dumps({"topic": "ok", "value": "{}"}) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+    buf = io.StringIO()
+    args = build_parser().parse_args([str(path)])
+    assert (
+        main(
+            args,
+            streams=CliStreams(stdout=buf, stdout_is_tty=False),
+        )
+        == EXIT_OK
+    )
+    assert 'topic: "ok"' in buf.getvalue()
+    assert not (tmp_path / "scenario.yaml").exists()
+
+
+def test_main_injected_stdout_without_tty_flag_uses_stream_isatty(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Covers ``_resolve_scenario_stdout_tty`` fallback ``out.isatty()``."""
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    path.write_text(
+        json.dumps({"topic": "ok", "value": "{}"}) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+    buf = io.StringIO()
+    args = build_parser().parse_args([str(path)])
+    assert main(args, streams=CliStreams(stdout=buf)) == EXIT_OK
+    assert 'topic: "ok"' in buf.getvalue()
+
+
+def test_scenario_writes_to_file_reads_sys_stdout_isatty(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    """Covers real ``_scenario_writes_to_file`` and stdin/stdout-None
+    branch."""
+    monkeypatch.setattr(
+        "collector_to_emulator.cli._scenario_writes_to_file",
+        _ORIGINAL_SCENARIO_WRITES_TO_FILE,
+    )
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    path.write_text(
+        json.dumps({"topic": "ok", "value": "{}"}) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+    args = build_parser().parse_args([str(path)])
+    assert main(args) == EXIT_OK
+    assert (
+        (tmp_path / "scenario.yaml")
+        .read_text(encoding="utf-8")
+        .startswith('name: "Unnamed"\n')
+    )
+    assert capsys.readouterr().out == ""
+
+
+def test_main_open_input_jsonl_oserror_returns_exit_error(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    blocked = tmp_path / "blocked.jsonl"
+    blocked.write_text(
+        json.dumps({"topic": "x", "value": "{}"}) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    real_open = open
+
+    def open_hook(file, *args, **kwargs):
+        if str(file) == str(blocked):
+            raise OSError("simulated open failure")
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", open_hook)
+    args = build_parser().parse_args([str(blocked)])
+    assert main(args) == EXIT_ERROR
+    assert "simulated open failure" in capsys.readouterr().err
+
+
+def test_cli_main_entry_delegates_to_run() -> None:
+    """Covers ``_cli_main`` (``python -m`` entry)."""
+    with patch.object(cli_module, "run") as mock_run:
+        cli_module._cli_main()
+    mock_run.assert_called_once_with()
+
+
+def test_cli_module_runnable_via_python_m_shows_help() -> None:
+    """Smoke: ``__main__`` path runs (``if __name__ == "__main__"``)."""
+    repo_root = Path(__file__).resolve().parents[1]
+    src = repo_root / "src"
+    env = os.environ | {"PYTHONPATH": str(src)}
+    cp = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "collector_to_emulator.cli",
+            "-h",
+        ],
+        cwd=str(repo_root),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert cp.returncode == EXIT_OK
+    assert "convert kafka-collector" in cp.stdout
 
 
 @pytest.fixture(autouse=True)
