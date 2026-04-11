@@ -56,7 +56,7 @@ def write_scenario_output(
     if not stdout_is_tty:
         stdout.write(content)
         return
-    out = scenario_path if scenario_path is not None else _SCENARIO_PATH
+    out = scenario_path
     out.write_text(content, encoding="utf-8")
 
 
@@ -108,9 +108,7 @@ def _parse_sleep_round_ms(value: str) -> int:
             f"invalid int value: {value!r}"
         ) from None
     if n < 1:
-        raise argparse.ArgumentTypeError(
-            "sleep round step must be at least 1"
-        )
+        raise argparse.ArgumentTypeError("sleep round step must be at least 1")
     return n
 
 
@@ -232,7 +230,11 @@ def _convert_and_write_scenario(
                 round_ms=args.sleep_round_ms,
             ),
         )
-        scenario_path = Path(args.scenario) if args.scenario else None
+        scenario_path = (
+            Path(args.scenario)
+            if args.scenario is not None
+            else _SCENARIO_PATH
+        )
         out, scenario_tty = _resolve_scenario_stdout_tty(
             streams.stdout, streams.stdout_is_tty
         )
