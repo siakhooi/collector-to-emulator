@@ -190,6 +190,51 @@ def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
     return parser
 
 
+def _convert_and_write_scenario(
+    args: argparse.Namespace,
+    stream: TextIO,
+    *,
+    stdout: TextIO | None,
+    stdout_is_tty: bool | None,
+    stderr: TextIO | None,
+) -> int:
+    """Read JSONL from ``stream``, emit templates and scenario; return
+    ``EXIT_OK`` or ``EXIT_ERROR``."""
+    try:
+        records = list(iter_jsonl_records(stream))
+        templates_dir = (
+            Path(args.template_dir)
+            if args.template_dir is not None
+            else _TEMPLATES_DIR
+        )
+        dict_records = write_templates_from_records(records, templates_dir)
+        scenario_name = args.scenario_name or DEFAULT_SCENARIO_NAME
+        scenario_text = build_scenario_yaml(
+            dict_records,
+            templates_dir,
+            scenario_name=scenario_name,
+            sleep_timing=SleepTiming(
+                gap_threshold_ms=args.sleep_gap_ms,
+                duration_cap_ms=args.sleep_cap_ms,
+                round_ms=args.sleep_round_ms,
+            ),
+        )
+        scenario_path = Path(args.scenario) if args.scenario else None
+        out, scenario_tty = _resolve_scenario_stdout_tty(
+            stdout, stdout_is_tty
+        )
+        write_scenario_output(
+            scenario_text,
+            scenario_path=scenario_path,
+            stdout=out,
+            stdout_is_tty=scenario_tty,
+        )
+    except ValueError as e:
+        _print_error(e, stderr=stderr)
+        return EXIT_ERROR
+    return EXIT_OK
+
+
 def main(
     args: argparse.Namespace,
     *,
@@ -217,42 +262,16 @@ def main(
         return EXIT_USAGE
 
     try:
-        records = list(iter_jsonl_records(stream))
-        templates_dir = (
-            Path(args.template_dir)
-            if args.template_dir is not None
-            else _TEMPLATES_DIR
+        return _convert_and_write_scenario(
+            args,
+            stream,
+            stdout=s.stdout,
+            stdout_is_tty=s.stdout_is_tty,
+            stderr=s.stderr,
         )
-        dict_records = write_templates_from_records(records, templates_dir)
-        scenario_name = args.scenario_name or DEFAULT_SCENARIO_NAME
-        scenario_text = build_scenario_yaml(
-            dict_records,
-            templates_dir,
-            scenario_name=scenario_name,
-            sleep_timing=SleepTiming(
-                gap_threshold_ms=args.sleep_gap_ms,
-                duration_cap_ms=args.sleep_cap_ms,
-                round_ms=args.sleep_round_ms,
-            ),
-        )
-        scenario_path = Path(args.scenario) if args.scenario else None
-        out, scenario_tty = _resolve_scenario_stdout_tty(
-            s.stdout, s.stdout_is_tty
-        )
-        write_scenario_output(
-            scenario_text,
-            scenario_path=scenario_path,
-            stdout=out,
-            stdout_is_tty=scenario_tty,
-        )
-    except ValueError as e:
-        _print_error(e, stderr=s.stderr)
-        return EXIT_ERROR
     finally:
         if must_close:
             stream.close()
-
-    return EXIT_OK
 
 
 def run(
