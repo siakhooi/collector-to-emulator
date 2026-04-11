@@ -21,9 +21,9 @@ _TEMPLATES_DIR = Path("templates")
 _SCENARIO_PATH = Path("scenario.yaml")
 
 
-def print_to_stderr_and_exit(e: Exception, exit_code: int) -> None:
-    print(f"Error: {e}", file=sys.stderr)
-    sys.exit(exit_code)
+def _print_error(e: Exception, *, stderr: TextIO | None = None) -> None:
+    out = sys.stderr if stderr is None else stderr
+    print(f"Error: {e}", file=out)
 
 
 def write_scenario_output(
@@ -159,32 +159,34 @@ def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
     return parser
 
 
-def run(
+def main(
+    args: argparse.Namespace,
     *,
     stdin: TextIO | None = None,
     stdin_is_tty: bool | None = None,
     stdout: TextIO | None = None,
     stdout_is_tty: bool | None = None,
-) -> None:
-    args = build_parser().parse_args()
-
+    stderr: TextIO | None = None,
+) -> int:
+    """Run conversion pipeline; return exit code (0 success, 1 I/O or data
+    error, 2 usage / invalid args)."""
     if args.sleep_round_ms < 1:
-        print_to_stderr_and_exit(
+        _print_error(
             ValueError("sleep round step must be at least 1"),
-            2,
+            stderr=stderr,
         )
-        return
+        return 2
 
     try:
         stream, must_close = open_jsonl_source(
             args, stdin=stdin, stdin_is_tty=stdin_is_tty
         )
     except OSError as e:
-        print_to_stderr_and_exit(e, 1)
-        return
+        _print_error(e, stderr=stderr)
+        return 1
     except ValueError as e:
-        print_to_stderr_and_exit(e, 2)
-        return
+        _print_error(e, stderr=stderr)
+        return 2
 
     try:
         records = list(iter_jsonl_records(stream))
@@ -220,11 +222,32 @@ def run(
             stdout_is_tty=scenario_tty,
         )
     except ValueError as e:
-        print_to_stderr_and_exit(e, 1)
-        return
+        _print_error(e, stderr=stderr)
+        return 1
     finally:
         if must_close:
             stream.close()
+
+    return 0
+
+
+def run(
+    *,
+    stdin: TextIO | None = None,
+    stdin_is_tty: bool | None = None,
+    stdout: TextIO | None = None,
+    stdout_is_tty: bool | None = None,
+) -> None:
+    args = build_parser().parse_args()
+    code = main(
+        args,
+        stdin=stdin,
+        stdin_is_tty=stdin_is_tty,
+        stdout=stdout,
+        stdout_is_tty=stdout_is_tty,
+    )
+    if code != 0:
+        sys.exit(code)
 
 
 if __name__ == "__main__":

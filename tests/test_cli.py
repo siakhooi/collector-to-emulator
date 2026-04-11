@@ -6,6 +6,7 @@ from pathlib import Path
 
 from collector_to_emulator.cli import (
     build_parser,
+    main,
     open_jsonl_source,
     run,
     write_scenario_output,
@@ -41,6 +42,28 @@ def test_write_scenario_output_writes_to_injected_stdout() -> None:
         stdout_is_tty=False,
     )
     assert buf.getvalue() == "name: x\nsteps: []\n"
+
+
+def test_main_returns_2_when_sleep_round_invalid(capsys) -> None:
+    args = build_parser().parse_args(["-r", "0"])
+    assert main(args, stdin_is_tty=True) == 2
+    assert "sleep round" in capsys.readouterr().err
+
+
+def test_main_returns_0_without_system_exit(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    path.write_text(
+        json.dumps({"topic": "ok", "value": "{}"}) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+    args = build_parser().parse_args([str(path)])
+    assert main(args) == 0
 
 
 def test_open_jsonl_source_injected_stdin_piped() -> None:
