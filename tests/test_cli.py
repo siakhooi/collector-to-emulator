@@ -388,6 +388,53 @@ def test_run_empty_jsonl_writes_empty_scenario(
     )
 
 
+def test_run_timestamps_sleep_rounded_to_nearest_ms(
+    monkeypatch, tmp_path: Path, capsys
+):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    path.write_text(
+        "\n".join(
+            [
+                json.dumps({"topic": "a", "timestamp": 1000, "value": "{}"}),
+                json.dumps({"topic": "b", "timestamp": 2500, "value": "{}"}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["collector-to-emulator", "-r", "40", str(path)],
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    run()
+    assert capsys.readouterr().err == ""
+    scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
+    assert 'message: "Waiting 1520ms"' in scenario
+    assert 'duration: "1520ms"' in scenario
+
+
+def test_run_invalid_sleep_round_exit_code(monkeypatch, capsys):
+    monkeypatch.setattr(
+        "sys.argv",
+        ["collector-to-emulator", "-r", "0"],
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        run()
+    assert pytest_wrapped_e.value.code == 2
+    assert "at least 1" in capsys.readouterr().err
+
+
 def test_run_timestamps_emit_sleep_when_gap_over_500ms(
     monkeypatch, tmp_path: Path, capsys
 ):

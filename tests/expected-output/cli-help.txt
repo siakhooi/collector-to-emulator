@@ -1,5 +1,5 @@
 usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [-n NAME] [-s PATH]
-                             [-g MS] [-c MS]
+                             [-g MS] [-c MS] [-r MS]
                              [JSONL]
 
 convert kafka-collector output into kafka-emulator config
@@ -20,3 +20,5 @@ options:
                         exceeds this many milliseconds (default: 500)
   -c, --sleep-cap MS    maximum sleep duration in milliseconds when inserting
                         a sleep step (default: 5000)
+  -r, --round MS        round each sleep duration to the nearest multiple of
+                        this many milliseconds (default: 1, no rounding)

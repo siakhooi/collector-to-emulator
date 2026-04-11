@@ -13,6 +13,7 @@ _DEFAULT_SCENARIO_NAME = "Unnamed"
 _UNSAFE_TOPIC_CHARS = re.compile(r"[^\w\-.]+", re.UNICODE)
 _SLEEP_GAP_THRESHOLD_MS = 500
 _SLEEP_DURATION_CAP_MS = 5000
+_SLEEP_ROUND_MS = 1
 
 
 def print_to_stderr_and_exit(e: Exception, exit_code: int) -> None:
@@ -130,6 +131,15 @@ def _record_timestamp_ms(
     )
 
 
+def _quantize_sleep_ms(sleep_ms: int, round_ms: int) -> int:
+    """Round sleep duration to the nearest ``round_ms`` (1 = no change)."""
+    if round_ms <= 0:
+        raise ValueError("sleep round step must be a positive integer")
+    if round_ms == 1:
+        return sleep_ms
+    return int(round(sleep_ms / round_ms) * round_ms)
+
+
 def _yaml_sleep_step(sleep_ms: int) -> list[str]:
     msg = f"Waiting {sleep_ms}ms"
     dur = f"{sleep_ms}ms"
@@ -161,6 +171,7 @@ def build_scenario_yaml(
     scenario_name: str = _DEFAULT_SCENARIO_NAME,
     sleep_gap_threshold_ms: int = _SLEEP_GAP_THRESHOLD_MS,
     sleep_duration_cap_ms: int = _SLEEP_DURATION_CAP_MS,
+    sleep_round_ms: int = _SLEEP_ROUND_MS,
 ) -> str:
     preamble = _scenario_preamble(scenario_name).rstrip("\n")
     if not records:
@@ -178,7 +189,10 @@ def build_scenario_yaml(
             else:
                 gap_ms = ts_ms - base_ms
                 if gap_ms > sleep_gap_threshold_ms:
-                    sleep_ms = min(gap_ms, sleep_duration_cap_ms)
+                    sleep_ms = _quantize_sleep_ms(
+                        min(gap_ms, sleep_duration_cap_ms),
+                        sleep_round_ms,
+                    )
                     lines.append("\n".join(_yaml_sleep_step(sleep_ms)))
                     base_ms = ts_ms
         basename = _template_basename(seq, width, record["topic"])
@@ -327,6 +341,18 @@ def run() -> None:
         ),
     )
     parser.add_argument(
+        "-r",
+        "--round",
+        dest="sleep_round_ms",
+        metavar="MS",
+        type=int,
+        default=_SLEEP_ROUND_MS,
+        help=(
+            "round each sleep duration to the nearest multiple of this many "
+            f"milliseconds (default: {_SLEEP_ROUND_MS}, no rounding)"
+        ),
+    )
+    parser.add_argument(
         "jsonl",
         nargs="?",
         metavar="JSONL",
@@ -334,6 +360,13 @@ def run() -> None:
     )
 
     args = parser.parse_args()
+
+    if args.sleep_round_ms < 1:
+        print_to_stderr_and_exit(
+            ValueError("sleep round step must be at least 1"),
+            2,
+        )
+        return
 
     try:
         stream, must_close = open_jsonl_source(args)
@@ -359,6 +392,7 @@ def run() -> None:
             scenario_name=scenario_name,
             sleep_gap_threshold_ms=args.sleep_gap_ms,
             sleep_duration_cap_ms=args.sleep_cap_ms,
+            sleep_round_ms=args.sleep_round_ms,
         )
         scenario_path = Path(args.scenario) if args.scenario else None
         write_scenario_output(
