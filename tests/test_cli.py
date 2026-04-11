@@ -5,6 +5,7 @@ from importlib.metadata import version as pkg_version
 from pathlib import Path
 
 from collector_to_emulator.cli import (
+    CliStreams,
     build_parser,
     main,
     open_jsonl_source,
@@ -46,7 +47,7 @@ def test_write_scenario_output_writes_to_injected_stdout() -> None:
 
 def test_main_returns_2_when_sleep_round_invalid(capsys) -> None:
     args = build_parser().parse_args(["-r", "0"])
-    assert main(args, stdin_is_tty=True) == 2
+    assert main(args, streams=CliStreams(stdin_is_tty=True)) == 2
     assert "sleep round" in capsys.readouterr().err
 
 
@@ -459,7 +460,7 @@ def test_run_forwards_stderr_to_buffer(monkeypatch) -> None:
         lambda: True,
     )
     with pytest.raises(SystemExit) as exc_info:
-        run(argv=["-r", "0"], stderr=err_buf)
+        run(argv=["-r", "0"], streams=CliStreams(stderr=err_buf))
     assert exc_info.value.code == 2
     assert "at least 1" in err_buf.getvalue()
 

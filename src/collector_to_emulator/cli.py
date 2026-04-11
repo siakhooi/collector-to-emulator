@@ -1,5 +1,6 @@
 import argparse
 import sys
+from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
 from typing import TextIO
@@ -19,6 +20,18 @@ __version__: str = version("collector-to-emulator")
 
 _TEMPLATES_DIR = Path("templates")
 _SCENARIO_PATH = Path("scenario.yaml")
+
+
+@dataclass(frozen=True, slots=True)
+class CliStreams:
+    """Optional stdin/stdout/stderr and TTY overrides for
+    ``main`` / ``run``."""
+
+    stdin: TextIO | None = None
+    stdin_is_tty: bool | None = None
+    stdout: TextIO | None = None
+    stdout_is_tty: bool | None = None
+    stderr: TextIO | None = None
 
 
 def _print_error(e: Exception, *, stderr: TextIO | None = None) -> None:
@@ -174,30 +187,27 @@ def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
 def main(
     args: argparse.Namespace,
     *,
-    stdin: TextIO | None = None,
-    stdin_is_tty: bool | None = None,
-    stdout: TextIO | None = None,
-    stdout_is_tty: bool | None = None,
-    stderr: TextIO | None = None,
+    streams: CliStreams | None = None,
 ) -> int:
     """Run conversion pipeline; return exit code (0 success, 1 I/O or data
     error, 2 usage / invalid args)."""
+    s = streams if streams is not None else CliStreams()
     if args.sleep_round_ms < 1:
         _print_error(
             ValueError("sleep round step must be at least 1"),
-            stderr=stderr,
+            stderr=s.stderr,
         )
         return 2
 
     try:
         stream, must_close = open_jsonl_source(
-            args, stdin=stdin, stdin_is_tty=stdin_is_tty
+            args, stdin=s.stdin, stdin_is_tty=s.stdin_is_tty
         )
     except OSError as e:
-        _print_error(e, stderr=stderr)
+        _print_error(e, stderr=s.stderr)
         return 1
     except ValueError as e:
-        _print_error(e, stderr=stderr)
+        _print_error(e, stderr=s.stderr)
         return 2
 
     try:
@@ -220,7 +230,9 @@ def main(
             ),
         )
         scenario_path = Path(args.scenario) if args.scenario else None
-        out, scenario_tty = _resolve_scenario_stdout_tty(stdout, stdout_is_tty)
+        out, scenario_tty = _resolve_scenario_stdout_tty(
+            s.stdout, s.stdout_is_tty
+        )
         write_scenario_output(
             scenario_text,
             scenario_path=scenario_path,
@@ -228,7 +240,7 @@ def main(
             stdout_is_tty=scenario_tty,
         )
     except ValueError as e:
-        _print_error(e, stderr=stderr)
+        _print_error(e, stderr=s.stderr)
         return 1
     finally:
         if must_close:
@@ -240,21 +252,10 @@ def main(
 def run(
     *,
     argv: list[str] | None = None,
-    stdin: TextIO | None = None,
-    stdin_is_tty: bool | None = None,
-    stdout: TextIO | None = None,
-    stdout_is_tty: bool | None = None,
-    stderr: TextIO | None = None,
+    streams: CliStreams | None = None,
 ) -> None:
     args = build_parser().parse_args(argv)
-    code = main(
-        args,
-        stdin=stdin,
-        stdin_is_tty=stdin_is_tty,
-        stdout=stdout,
-        stdout_is_tty=stdout_is_tty,
-        stderr=stderr,
-    )
+    code = main(args, streams=streams)
     if code != 0:
         sys.exit(code)
 
