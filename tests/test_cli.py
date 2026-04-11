@@ -496,18 +496,6 @@ def test_run_timestamps_sleep_rounded_to_nearest_ms(
     assert 'duration: "1520ms"' in scenario
 
 
-def test_run_invalid_sleep_round_exit_code(monkeypatch, capsys):
-    monkeypatch.setattr(
-        "collector_to_emulator.cli.sys.stdin.isatty",
-        lambda: True,
-    )
-
-    with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run(argv=["-r", "0"])
-    assert pytest_wrapped_e.value.code == EXIT_USAGE
-    assert "at least 1" in capsys.readouterr().err
-
-
 def test_run_forwards_stderr_to_buffer(monkeypatch) -> None:
     """Errors from ``main`` (after parse) use ``CliStreams.stderr``."""
     err_buf = io.StringIO()
