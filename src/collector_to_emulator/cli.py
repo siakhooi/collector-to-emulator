@@ -105,8 +105,9 @@ def open_jsonl_source(
     )
 
 
-def _parse_sleep_round_ms(value: str) -> int:
-    """``argparse`` ``type=`` for ``-r`` / ``--round``: positive integer ms."""
+def _parse_positive_int_ms(value: str, *, name: str) -> int:
+    """Parse a string as an int ``>= 1`` for ``argparse`` ``type=``
+    callbacks."""
     try:
         n = int(value)
     except ValueError:
@@ -114,8 +115,23 @@ def _parse_sleep_round_ms(value: str) -> int:
             f"invalid int value: {value!r}"
         ) from None
     if n < 1:
-        raise argparse.ArgumentTypeError("sleep round step must be at least 1")
+        raise argparse.ArgumentTypeError(f"{name} must be at least 1")
     return n
+
+
+def _parse_sleep_gap_ms(value: str) -> int:
+    """``argparse`` ``type=`` for ``-g`` / ``--sleep-gap``."""
+    return _parse_positive_int_ms(value, name="sleep gap")
+
+
+def _parse_sleep_cap_ms(value: str) -> int:
+    """``argparse`` ``type=`` for ``-c`` / ``--sleep-cap``."""
+    return _parse_positive_int_ms(value, name="sleep duration cap")
+
+
+def _parse_sleep_round_ms(value: str) -> int:
+    """``argparse`` ``type=`` for ``-r`` / ``--round``."""
+    return _parse_positive_int_ms(value, name="sleep round step")
 
 
 def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
@@ -169,7 +185,7 @@ def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
         "--sleep-gap",
         dest="sleep_gap_ms",
         metavar="MS",
-        type=int,
+        type=_parse_sleep_gap_ms,
         default=SLEEP_GAP_THRESHOLD_MS,
         help=(
             "emit a sleep step when the gap between timestamps exceeds "
@@ -181,7 +197,7 @@ def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
         "--sleep-cap",
         dest="sleep_cap_ms",
         metavar="MS",
-        type=int,
+        type=_parse_sleep_cap_ms,
         default=SLEEP_DURATION_CAP_MS,
         help=(
             "maximum sleep duration in milliseconds when inserting a sleep "

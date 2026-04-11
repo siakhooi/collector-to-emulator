@@ -76,6 +76,36 @@ def test_parser_rejects_non_int_sleep_round(capsys) -> None:
     assert "invalid int value" in err
 
 
+@pytest.mark.parametrize(
+    ("flag", "snippet"),
+    [
+        ("-g", "sleep gap"),
+        ("--sleep-gap", "sleep gap"),
+        ("-c", "sleep duration cap"),
+        ("--sleep-cap", "sleep duration cap"),
+    ],
+)
+def test_parser_rejects_non_positive_sleep_gap_or_cap(
+    capsys, flag: str, snippet: str
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        build_parser().parse_args([flag, "0"])
+    assert exc_info.value.code == EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "at least 1" in err
+    assert snippet in err
+
+
+@pytest.mark.parametrize("flag", ["-g", "--sleep-gap", "-c", "--sleep-cap"])
+def test_parser_rejects_non_int_sleep_gap_or_cap(
+    capsys, flag: str
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        build_parser().parse_args([flag, "nope"])
+    assert exc_info.value.code == EXIT_USAGE
+    assert "invalid int value" in capsys.readouterr().err
+
+
 def test_main_returns_exit_ok_without_system_exit(
     monkeypatch, tmp_path: Path
 ) -> None:
