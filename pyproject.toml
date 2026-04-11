@@ -1,6 +1,6 @@
 [project]
 name = "collector_to_emulator"
-version = "0.2.0"
+version = "0.3.0"
 description = "Convert kafka-collector JSONL output into kafka-emulator scenario YAML"
 authors = [
     {name = "Siak Hooi",email = "siakhooi@gmail.com"}
