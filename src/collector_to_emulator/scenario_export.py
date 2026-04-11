@@ -6,11 +6,17 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_SCENARIO_NAME = "Unnamed"
+DEFAULT_BOOTSTRAP_SERVERS = "kafka-test:9092"
 SLEEP_GAP_THRESHOLD_MS = 500
 SLEEP_DURATION_CAP_MS = 5000
 SLEEP_ROUND_MS = 1
 
 _UNSAFE_TOPIC_CHARS = re.compile(r"[^\w\-.]+", re.UNICODE)
+_YAML_PLAIN_HEADER_KEY = re.compile(r"^[a-zA-Z_][\w\-]*$")
+
+
+def _index_width(n: int) -> int:
+    return max(1, len(str(n)))
 
 
 def _safe_topic_filename(topic: str) -> str:
@@ -72,7 +78,7 @@ def _scenario_preamble(scenario_name: str) -> str:
         f"name: {_yaml_scalar(scenario_name)}\n\n"
         "kafka:\n"
         "  default:\n"
-        '    bootstrap_servers: "kafka-test:9092"\n\n'
+        f"    bootstrap_servers: {_yaml_scalar(DEFAULT_BOOTSTRAP_SERVERS)}\n\n"
     )
 
 
@@ -140,7 +146,7 @@ def _yaml_headers_block(headers: dict[str, Any], indent: int) -> list[str]:
     for key, val in headers.items():
         if not isinstance(key, str):
             raise ValueError("header keys must be strings")
-        k = key if re.match(r"^[a-zA-Z_][\w\-]*$", key) else json.dumps(key)
+        k = key if _YAML_PLAIN_HEADER_KEY.match(key) else json.dumps(key)
         lines.append(f"{inner}{k}: {_yaml_scalar(val)}")
     return lines
 
@@ -158,7 +164,7 @@ def build_scenario_yaml(
     if not records:
         return preamble + "\nsteps: []\n"
     n = len(records)
-    width = max(1, len(str(n)))
+    width = _index_width(n)
     lines: list[str] = [preamble, "steps:"]
     base_ms: int | None = None
     for seq, record in enumerate(records, start=1):
@@ -196,7 +202,7 @@ def write_templates_from_records(
     records: list[Any], templates_dir: Path
 ) -> list[dict[str, Any]]:
     n = len(records)
-    width = max(1, len(str(n))) if n else 1
+    width = _index_width(n)
     templates_dir.mkdir(parents=True, exist_ok=True)
     dict_records: list[dict[str, Any]] = []
     for seq, record in enumerate(records, start=1):
