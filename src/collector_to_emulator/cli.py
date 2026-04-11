@@ -46,7 +46,7 @@ def _print_error(e: Exception, *, stderr: TextIO | None = None) -> None:
 
 
 def _main_fail(exc: Exception, *, stderr: TextIO | None, code: int) -> int:
-    """Log ``exc`` to stderr and return the exit code (for ``main``)."""
+    """Log ``exc`` to stderr and return the exit code."""
     _print_error(exc, stderr=stderr)
     return code
 
@@ -251,8 +251,7 @@ def _convert_and_write_scenario(
             stdout_is_tty=scenario_tty,
         )
     except ValueError as e:
-        _print_error(e, stderr=streams.stderr)
-        return EXIT_ERROR
+        return _main_fail(e, stderr=streams.stderr, code=EXIT_ERROR)
     return EXIT_OK
 
 
