@@ -8,16 +8,32 @@ pip install collector_to_emulator
 ## Usage
 ```
 $ collector-to-emulator -h
-usage: collector-to-emulator [-h] [-v]
+usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [-n NAME] [-s PATH]
+                             [-g MS] [-c MS] [-r MS]
+                             [JSONL]
 
 convert kafka-collector output into kafka-emulator config
 
+positional arguments:
+  JSONL                 JSONL file (if stdin is a TTY and -i omitted)
+
 options:
-  -h, --help     show this help message and exit
-  -v, --version  show program's version number and exit
+  -h, --help            show this help message and exit
+  -v, --version         show program's version number and exit
+  -i, --input PATH      JSONL file (ignored when stdin is piped)
+  -t, --template-dir DIR
+                        template output directory (default: templates/)
+  -n, --name NAME       scenario name in generated YAML (default: Unnamed)
+  -s, --scenario PATH   scenario YAML path when stdout is a TTY (default:
+                        scenario.yaml)
+  -g, --sleep-gap MS    emit a sleep step when the gap between timestamps
+                        exceeds this many milliseconds (default: 500)
+  -c, --sleep-cap MS    maximum sleep duration in milliseconds when inserting
+                        a sleep step (default: 5000)
+  -r, --round MS        round each sleep duration to the nearest multiple of
+                        this many milliseconds (default: 1, no rounding)
 
 ```
-
 
 ## Links
 - https://pypi.org/project/collector_to_emulator/
