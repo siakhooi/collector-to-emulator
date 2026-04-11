@@ -15,13 +15,15 @@ from collector_to_emulator.scenario_export import (
     write_templates_from_records,
 )
 
+__version__: str = version("collector-to-emulator")
+
 _TEMPLATES_DIR = Path("templates")
 _SCENARIO_PATH = Path("scenario.yaml")
 
 
 def print_to_stderr_and_exit(e: Exception, exit_code: int) -> None:
     print(f"Error: {e}", file=sys.stderr)
-    exit(exit_code)
+    sys.exit(exit_code)
 
 
 def write_scenario_output(
@@ -61,11 +63,7 @@ def open_jsonl_source(args: argparse.Namespace) -> tuple[TextIO, bool]:
 def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
     """CLI argument definitions. ``pkg_version`` defaults to installed package
     metadata."""
-    v = (
-        pkg_version
-        if pkg_version is not None
-        else version("collector-to-emulator")
-    )
+    v = pkg_version if pkg_version is not None else __version__
     parser = argparse.ArgumentParser(
         prog="collector-to-emulator",
         description="convert kafka-collector output into kafka-emulator "
