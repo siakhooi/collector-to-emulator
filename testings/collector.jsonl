@@ -1,6 +1,6 @@
 {"topic": "topic3", "timestamp": 1775476644018, "header": {}, "value": "{\"id\": 15, \"message\": \"Test message 15\", \"timestamp\": \"2026-04-06T11:57:23+00:00\"}", "key": null}
 {"topic": "topic1", "timestamp": 1775476647543, "header": {}, "value": "{\"id\": 16, \"message\": \"Test message 16\", \"timestamp\": \"2026-04-06T11:57:26+00:00\"}", "key": "bb"}
-{"topic": "topic2", "timestamp": 1775476648905, "header": {}, "value": "{\"id\": 17, \"message\": \"Test message 17\", \"timestamp\": \"2026-04-06T11:57:27+00:00\"}", "key": null}
+{"topic": "topic2", "timestamp": 1775476647743, "header": {}, "value": "{\"id\": 17, \"message\": \"Test message 17\", \"timestamp\": \"2026-04-06T11:57:27+00:00\"}", "key": null}
 {"topic": "topic3", "timestamp": 1775476650376, "header": {}, "value": "{\"id\": 18, \"message\": \"Test message 18\", \"timestamp\": \"2026-04-06T11:57:29+00:00\"}", "key": null}
 {"topic": "topic1", "timestamp": 1775476653716, "header": {}, "value": "{\"id\": 19, \"message\": \"Test message 19\", \"timestamp\": \"2026-04-06T11:57:32+00:00\"}", "key": null}
 {"topic": "topic2", "timestamp": 1775476655075, "header": {"a": "b"}, "value": "{\"id\": 20, \"message\": \"Test message 20\", \"timestamp\": \"2026-04-06T11:57:34+00:00\"}", "key": null}

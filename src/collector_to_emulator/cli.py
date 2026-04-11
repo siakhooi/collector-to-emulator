@@ -17,6 +17,8 @@ kafka:
 
 """
 _UNSAFE_TOPIC_CHARS = re.compile(r"[^\w\-.]+", re.UNICODE)
+_SLEEP_GAP_THRESHOLD_MS = 500
+_SLEEP_DURATION_CAP_MS = 5000
 
 
 def print_to_stderr_and_exit(e: Exception, exit_code: int) -> None:
@@ -97,6 +99,44 @@ def _is_empty_key(key: Any) -> bool:
     return False
 
 
+def _record_timestamp_ms(
+    record: dict[str, Any], *, line_desc: str
+) -> int | None:
+    """Return collector epoch milliseconds from ``timestamp``, or None if
+    absent."""
+    if "timestamp" not in record or record["timestamp"] is None:
+        return None
+    raw = record["timestamp"]
+    if isinstance(raw, bool):
+        raise ValueError(
+            f"{line_desc}: 'timestamp' must be a number, not bool"
+        )
+    if isinstance(raw, (int, float)):
+        return int(raw)
+    if isinstance(raw, str):
+        stripped = raw.strip()
+        try:
+            return int(float(stripped))
+        except ValueError as e:
+            raise ValueError(
+                f"{line_desc}: invalid 'timestamp' ({e!s})"
+            ) from e
+    raise ValueError(
+        f"{line_desc}: 'timestamp' must be a number or numeric string, "
+        f"not {type(raw).__name__}"
+    )
+
+
+def _yaml_sleep_step(sleep_ms: int) -> list[str]:
+    msg = f"Waiting {sleep_ms}ms"
+    dur = f"{sleep_ms}ms"
+    return [
+        "  - sleep:",
+        f"      message: {_yaml_scalar(msg)}",
+        f"      duration: {_yaml_scalar(dur)}",
+    ]
+
+
 def _yaml_headers_block(headers: dict[str, Any], indent: int) -> list[str]:
     pad = " " * indent
     if not headers:
@@ -119,7 +159,19 @@ def build_scenario_yaml(
     n = len(records)
     width = max(1, len(str(n)))
     lines: list[str] = [_SCENARIO_PREAMBLE.rstrip("\n"), "steps:"]
+    base_ms: int | None = None
     for seq, record in enumerate(records, start=1):
+        line_desc = f"record {seq}"
+        ts_ms = _record_timestamp_ms(record, line_desc=line_desc)
+        if ts_ms is not None:
+            if base_ms is None:
+                base_ms = ts_ms
+            else:
+                gap_ms = ts_ms - base_ms
+                if gap_ms > _SLEEP_GAP_THRESHOLD_MS:
+                    sleep_ms = min(gap_ms, _SLEEP_DURATION_CAP_MS)
+                    lines.append("\n".join(_yaml_sleep_step(sleep_ms)))
+                    base_ms = ts_ms
         basename = _template_basename(seq, width, record["topic"])
         body = _body_path_for_template(templates_dir, basename)
         topic_s = _yaml_scalar(record["topic"])
