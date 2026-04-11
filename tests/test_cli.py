@@ -6,6 +6,9 @@ from pathlib import Path
 
 from collector_to_emulator.cli import (
     CliStreams,
+    EXIT_ERROR,
+    EXIT_OK,
+    EXIT_USAGE,
     build_parser,
     main,
     open_jsonl_source,
@@ -30,7 +33,7 @@ def test_build_parser_version_uses_pkg_version(capsys, opt: str) -> None:
     p = build_parser(pkg_version="0.test.0")
     with pytest.raises(SystemExit) as exc_info:
         p.parse_args([opt])
-    assert exc_info.value.code == 0
+    assert exc_info.value.code == EXIT_OK
     assert capsys.readouterr().out == "collector-to-emulator 0.test.0\n"
 
 
@@ -45,13 +48,13 @@ def test_write_scenario_output_writes_to_injected_stdout() -> None:
     assert buf.getvalue() == "name: x\nsteps: []\n"
 
 
-def test_main_returns_2_when_sleep_round_invalid(capsys) -> None:
+def test_main_returns_exit_usage_when_sleep_round_invalid(capsys) -> None:
     args = build_parser().parse_args(["-r", "0"])
-    assert main(args, streams=CliStreams(stdin_is_tty=True)) == 2
+    assert main(args, streams=CliStreams(stdin_is_tty=True)) == EXIT_USAGE
     assert "sleep round" in capsys.readouterr().err
 
 
-def test_main_returns_0_without_system_exit(
+def test_main_returns_exit_ok_without_system_exit(
     monkeypatch, tmp_path: Path
 ) -> None:
     monkeypatch.chdir(tmp_path)
@@ -64,7 +67,7 @@ def test_main_returns_0_without_system_exit(
         lambda: True,
     )
     args = build_parser().parse_args([str(path)])
-    assert main(args) == 0
+    assert main(args) == EXIT_OK
 
 
 def test_open_jsonl_source_injected_stdin_piped() -> None:
@@ -99,7 +102,7 @@ def test_run_help(monkeypatch, capsys, option_help):
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=[option_help])
     assert pytest_wrapped_e.type is SystemExit
-    assert pytest_wrapped_e.value.code == 0
+    assert pytest_wrapped_e.value.code == EXIT_OK
 
     with open("tests/expected-output/cli-help.txt", "r") as f:
         expected_output = f.read()
@@ -119,7 +122,7 @@ def test_run_help312(monkeypatch, capsys, option_help):
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=[option_help])
     assert pytest_wrapped_e.type is SystemExit
-    assert pytest_wrapped_e.value.code == 0
+    assert pytest_wrapped_e.value.code == EXIT_OK
 
     with open("tests/expected-output/cli-help312.txt", "r") as f:
         expected_output = f.read()
@@ -133,7 +136,7 @@ def test_run_show_version(monkeypatch, capsys, option_version):
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=[option_version])
     assert pytest_wrapped_e.type is SystemExit
-    assert pytest_wrapped_e.value.code == 0
+    assert pytest_wrapped_e.value.code == EXIT_OK
 
     captured = capsys.readouterr()
     expected = "collector-to-emulator "
@@ -146,7 +149,7 @@ def test_run_wrong_options(monkeypatch, capsys, options):
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=list(options))
     assert pytest_wrapped_e.type is SystemExit
-    assert pytest_wrapped_e.value.code == 2
+    assert pytest_wrapped_e.value.code == EXIT_USAGE
 
     captured = capsys.readouterr()
     err = captured.err
@@ -165,7 +168,7 @@ def test_run_no_input_when_tty(monkeypatch, capsys):
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=[])
-    assert pytest_wrapped_e.value.code == 2
+    assert pytest_wrapped_e.value.code == EXIT_USAGE
 
     captured = capsys.readouterr()
     assert "No input:" in captured.err
@@ -292,7 +295,7 @@ def test_run_stdin_priority_over_dash_i(monkeypatch, tmp_path: Path, capsys):
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=["-i", str(good)])
-    assert pytest_wrapped_e.value.code == 1
+    assert pytest_wrapped_e.value.code == EXIT_ERROR
     assert "invalid JSON" in capsys.readouterr().err
 
 
@@ -345,7 +348,7 @@ def test_run_missing_topic_exit_code(monkeypatch, tmp_path: Path, capsys):
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=[str(path)])
-    assert pytest_wrapped_e.value.code == 1
+    assert pytest_wrapped_e.value.code == EXIT_ERROR
     assert "topic" in capsys.readouterr().err
 
 
@@ -449,7 +452,7 @@ def test_run_invalid_sleep_round_exit_code(monkeypatch, capsys):
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=["-r", "0"])
-    assert pytest_wrapped_e.value.code == 2
+    assert pytest_wrapped_e.value.code == EXIT_USAGE
     assert "at least 1" in capsys.readouterr().err
 
 
@@ -461,7 +464,7 @@ def test_run_forwards_stderr_to_buffer(monkeypatch) -> None:
     )
     with pytest.raises(SystemExit) as exc_info:
         run(argv=["-r", "0"], streams=CliStreams(stderr=err_buf))
-    assert exc_info.value.code == 2
+    assert exc_info.value.code == EXIT_USAGE
     assert "at least 1" in err_buf.getvalue()
 
 
@@ -611,5 +614,5 @@ def test_run_invalid_jsonl_exit_code(monkeypatch, tmp_path: Path, capsys):
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
         run(argv=[str(path)])
-    assert pytest_wrapped_e.value.code == 1
+    assert pytest_wrapped_e.value.code == EXIT_ERROR
     assert "invalid JSON" in capsys.readouterr().err

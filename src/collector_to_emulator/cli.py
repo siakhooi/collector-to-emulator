@@ -18,6 +18,11 @@ from collector_to_emulator.scenario_export import (
 
 __version__: str = version("collector-to-emulator")
 
+# Exit codes returned by ``main`` (and ``run`` via ``sys.exit``).
+EXIT_OK = 0
+EXIT_ERROR = 1  # I/O failure or invalid record / template data
+EXIT_USAGE = 2  # invalid CLI args or unusable input (e.g. no JSONL source)
+
 _TEMPLATES_DIR = Path("templates")
 _SCENARIO_PATH = Path("scenario.yaml")
 
@@ -189,15 +194,15 @@ def main(
     *,
     streams: CliStreams | None = None,
 ) -> int:
-    """Run conversion pipeline; return exit code (0 success, 1 I/O or data
-    error, 2 usage / invalid args)."""
+    """Run conversion pipeline; return ``EXIT_OK``, ``EXIT_ERROR``, or
+    ``EXIT_USAGE``."""
     s = streams if streams is not None else CliStreams()
     if args.sleep_round_ms < 1:
         _print_error(
             ValueError("sleep round step must be at least 1"),
             stderr=s.stderr,
         )
-        return 2
+        return EXIT_USAGE
 
     try:
         stream, must_close = open_jsonl_source(
@@ -205,10 +210,10 @@ def main(
         )
     except OSError as e:
         _print_error(e, stderr=s.stderr)
-        return 1
+        return EXIT_ERROR
     except ValueError as e:
         _print_error(e, stderr=s.stderr)
-        return 2
+        return EXIT_USAGE
 
     try:
         records = list(iter_jsonl_records(stream))
@@ -241,12 +246,12 @@ def main(
         )
     except ValueError as e:
         _print_error(e, stderr=s.stderr)
-        return 1
+        return EXIT_ERROR
     finally:
         if must_close:
             stream.close()
 
-    return 0
+    return EXIT_OK
 
 
 def run(
@@ -256,7 +261,7 @@ def run(
 ) -> None:
     args = build_parser().parse_args(argv)
     code = main(args, streams=streams)
-    if code != 0:
+    if code != EXIT_OK:
         sys.exit(code)
 
 
