@@ -1,4 +1,5 @@
 usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [-n NAME] [-s PATH]
+                             [-g MS]
                              [JSONL]
 
 convert kafka-collector output into kafka-emulator config
@@ -17,3 +18,6 @@ options:
   -s PATH, --scenario PATH
                         scenario YAML path when stdout is a TTY (default:
                         scenario.yaml)
+  -g MS, --sleep-gap MS
+                        emit a sleep step when the gap between timestamps
+                        exceeds this many milliseconds (default: 500)

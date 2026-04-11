@@ -17,6 +17,8 @@ run-s1:
 	poetry run collector-to-emulator testings/collector.jsonl -s s1.yaml -n 'Scenario 123'
 run-s2:
 	poetry run collector-to-emulator < testings/collector.jsonl > s2.yaml
+run-s1g:
+	poetry run collector-to-emulator testings/collector.jsonl -s s1.yaml -n 'Scenario 123' -g 5000
 set-version:
 	scripts/set-version.sh
 build:

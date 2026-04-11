@@ -159,6 +159,7 @@ def build_scenario_yaml(
     templates_dir: Path,
     *,
     scenario_name: str = _DEFAULT_SCENARIO_NAME,
+    sleep_gap_threshold_ms: int = _SLEEP_GAP_THRESHOLD_MS,
 ) -> str:
     preamble = _scenario_preamble(scenario_name).rstrip("\n")
     if not records:
@@ -175,7 +176,7 @@ def build_scenario_yaml(
                 base_ms = ts_ms
             else:
                 gap_ms = ts_ms - base_ms
-                if gap_ms > _SLEEP_GAP_THRESHOLD_MS:
+                if gap_ms > sleep_gap_threshold_ms:
                     sleep_ms = min(gap_ms, _SLEEP_DURATION_CAP_MS)
                     lines.append("\n".join(_yaml_sleep_step(sleep_ms)))
                     base_ms = ts_ms
@@ -301,6 +302,18 @@ def run() -> None:
         ),
     )
     parser.add_argument(
+        "-g",
+        "--sleep-gap",
+        dest="sleep_gap_ms",
+        metavar="MS",
+        type=int,
+        default=_SLEEP_GAP_THRESHOLD_MS,
+        help=(
+            "emit a sleep step when the gap between timestamps exceeds "
+            f"this many milliseconds (default: {_SLEEP_GAP_THRESHOLD_MS})"
+        ),
+    )
+    parser.add_argument(
         "jsonl",
         nargs="?",
         metavar="JSONL",
@@ -331,6 +344,7 @@ def run() -> None:
             dict_records,
             templates_dir,
             scenario_name=scenario_name,
+            sleep_gap_threshold_ms=args.sleep_gap_ms,
         )
         scenario_path = Path(args.scenario) if args.scenario else None
         write_scenario_output(

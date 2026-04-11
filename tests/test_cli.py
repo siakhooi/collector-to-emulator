@@ -418,6 +418,37 @@ def test_run_timestamps_emit_sleep_when_gap_over_500ms(
     assert scenario.index("  - sleep:") < scenario.index('topic: "b"')
 
 
+def test_run_timestamps_sleep_when_gap_over_custom_sleep_gap(
+    monkeypatch, tmp_path: Path, capsys
+):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    path.write_text(
+        "\n".join(
+            [
+                json.dumps({"topic": "a", "timestamp": 1000, "value": "{}"}),
+                json.dumps({"topic": "b", "timestamp": 1400, "value": "{}"}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["collector-to-emulator", "-g", "200", str(path)],
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    run()
+    assert capsys.readouterr().err == ""
+    scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
+    assert "  - sleep:" in scenario
+    assert 'message: "Waiting 400ms"' in scenario
+
+
 def test_run_timestamps_no_sleep_when_gap_at_most_500ms(
     monkeypatch, tmp_path: Path, capsys
 ):
