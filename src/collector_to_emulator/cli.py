@@ -9,13 +9,7 @@ from typing import Any, TextIO
 
 _TEMPLATES_DIR = Path("templates")
 _SCENARIO_PATH = Path("scenario.yaml")
-_SCENARIO_PREAMBLE = """name: Unnamed
-
-kafka:
-  default:
-    bootstrap_servers: "kafka-test:9092"
-
-"""
+_DEFAULT_SCENARIO_NAME = "Unnamed"
 _UNSAFE_TOPIC_CHARS = re.compile(r"[^\w\-.]+", re.UNICODE)
 _SLEEP_GAP_THRESHOLD_MS = 500
 _SLEEP_DURATION_CAP_MS = 5000
@@ -91,6 +85,15 @@ def _yaml_scalar(value: Any) -> str:
     raise ValueError(f"unsupported YAML scalar type: {type(value).__name__}")
 
 
+def _scenario_preamble(scenario_name: str) -> str:
+    return (
+        f"name: {_yaml_scalar(scenario_name)}\n\n"
+        "kafka:\n"
+        "  default:\n"
+        '    bootstrap_servers: "kafka-test:9092"\n\n'
+    )
+
+
 def _is_empty_key(key: Any) -> bool:
     if key is None:
         return True
@@ -152,13 +155,17 @@ def _yaml_headers_block(headers: dict[str, Any], indent: int) -> list[str]:
 
 
 def build_scenario_yaml(
-    records: list[dict[str, Any]], templates_dir: Path
+    records: list[dict[str, Any]],
+    templates_dir: Path,
+    *,
+    scenario_name: str = _DEFAULT_SCENARIO_NAME,
 ) -> str:
+    preamble = _scenario_preamble(scenario_name).rstrip("\n")
     if not records:
-        return _SCENARIO_PREAMBLE + "steps: []\n"
+        return preamble + "\nsteps: []\n"
     n = len(records)
     width = max(1, len(str(n)))
-    lines: list[str] = [_SCENARIO_PREAMBLE.rstrip("\n"), "steps:"]
+    lines: list[str] = [preamble, "steps:"]
     base_ms: int | None = None
     for seq, record in enumerate(records, start=1):
         line_desc = f"record {seq}"
@@ -274,6 +281,16 @@ def run() -> None:
         help="template output directory (default: templates/)",
     )
     parser.add_argument(
+        "-n",
+        "--name",
+        dest="scenario_name",
+        metavar="NAME",
+        help=(
+            "scenario name in generated YAML "
+            f"(default: {_DEFAULT_SCENARIO_NAME})"
+        ),
+    )
+    parser.add_argument(
         "-s",
         "--scenario",
         dest="scenario",
@@ -309,7 +326,12 @@ def run() -> None:
             else _TEMPLATES_DIR
         )
         dict_records = write_templates_from_records(records, templates_dir)
-        scenario_text = build_scenario_yaml(dict_records, templates_dir)
+        scenario_name = args.scenario_name or _DEFAULT_SCENARIO_NAME
+        scenario_text = build_scenario_yaml(
+            dict_records,
+            templates_dir,
+            scenario_name=scenario_name,
+        )
         scenario_path = Path(args.scenario) if args.scenario else None
         write_scenario_output(
             scenario_text,

@@ -14,7 +14,7 @@ run-3:
 run-t:
 	poetry run collector-to-emulator -i testings/collector.jsonl -t templates123
 run-s1:
-	poetry run collector-to-emulator testings/collector.jsonl -s s1.yaml
+	poetry run collector-to-emulator testings/collector.jsonl -s s1.yaml -n 'Scenario 123'
 run-s2:
 	poetry run collector-to-emulator < testings/collector.jsonl > s2.yaml
 set-version:

@@ -1,6 +1,7 @@
 import io
 import json
 import sys
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 
 from collector_to_emulator.cli import run
@@ -77,11 +78,10 @@ def test_run_show_version(monkeypatch, capsys, option_version):
     assert pytest_wrapped_e.type is SystemExit
     assert pytest_wrapped_e.value.code == 0
 
-    with open("tests/expected-output/cli-version.txt", "r") as f:
-        expected_output = f.read()
-
     captured = capsys.readouterr()
-    assert captured.out == expected_output
+    expected = "collector-to-emulator "
+    expected += f"{pkg_version('collector-to-emulator')}\n"
+    assert captured.out == expected
 
 
 @pytest.mark.parametrize("options", [["-p"], ["-p", "-j"]])
@@ -97,10 +97,10 @@ def test_run_wrong_options(monkeypatch, capsys, options):
     assert pytest_wrapped_e.value.code == 2
 
     captured = capsys.readouterr()
-    assert (
-        "usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [-s PATH] "
-        "[JSONL]" in captured.err
-    )
+    err = captured.err
+    assert "usage: collector-to-emulator" in err
+    assert "[-n NAME]" in err
+    assert "[JSONL]" in err
     assert (
         "collector-to-emulator: error: unrecognized arguments:" in captured.err
     )
@@ -118,6 +118,27 @@ def test_run_no_input_when_tty(monkeypatch, capsys):
 
     captured = capsys.readouterr()
     assert "No input:" in captured.err
+
+
+@pytest.mark.parametrize("flag", ["-n", "--name"])
+def test_run_scenario_name_cli(monkeypatch, tmp_path: Path, capsys, flag: str):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    rec = {"topic": "alpha", "value": json.dumps({"x": 1})}
+    path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        ["collector-to-emulator", str(path), flag, "replay-from-collector"],
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    run()
+    assert capsys.readouterr().err == ""
+    scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
+    assert scenario.startswith('name: "replay-from-collector"\n')
 
 
 def test_run_reads_jsonl_positional(monkeypatch, tmp_path: Path, capsys):
