@@ -8,12 +8,22 @@ from collector_to_emulator.cli import run
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _patch_scenario_to_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Non-TTY stdout under pytest; write scenario to file like a TTY."""
+    monkeypatch.setattr(
+        "collector_to_emulator.cli._scenario_writes_to_file",
+        lambda: True,
+    )
+
+
 @pytest.mark.parametrize("option_help", ["-h", "--help"])
 @pytest.mark.skipif(
     sys.version_info < (3, 13),
     reason="Help output format differs in Python < 3.13",
 )
 def test_run_help(monkeypatch, capsys, option_help):
+    monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setattr(
         "sys.argv",
         ["collector-to-emulator", option_help],
@@ -37,6 +47,7 @@ def test_run_help(monkeypatch, capsys, option_help):
     reason="Help output format differs in Python >= 3.13",
 )
 def test_run_help312(monkeypatch, capsys, option_help):
+    monkeypatch.setenv("COLUMNS", "80")
     monkeypatch.setattr(
         "sys.argv",
         ["collector-to-emulator", option_help],
@@ -87,8 +98,8 @@ def test_run_wrong_options(monkeypatch, capsys, options):
 
     captured = capsys.readouterr()
     assert (
-        "usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [JSONL]"
-        in captured.err
+        "usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [-s PATH] "
+        "[JSONL]" in captured.err
     )
     assert (
         "collector-to-emulator: error: unrecognized arguments:" in captured.err
@@ -283,6 +294,56 @@ def test_run_missing_topic_exit_code(monkeypatch, tmp_path: Path, capsys):
         run()
     assert pytest_wrapped_e.value.code == 1
     assert "topic" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("flag", ["-s", "--scenario"])
+def test_run_scenario_path_override(
+    monkeypatch, tmp_path: Path, capsys, flag: str
+):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    rec = {"topic": "x", "value": "{}"}
+    path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    custom = tmp_path / "custom.yaml"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["collector-to-emulator", flag, str(custom), str(path)],
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+
+    run()
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    text = custom.read_text(encoding="utf-8")
+    assert "steps:" in text
+    assert not (tmp_path / "scenario.yaml").exists()
+
+
+def test_run_writes_scenario_to_stdout_when_stdout_not_tty(
+    monkeypatch, tmp_path: Path, capsys
+):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "in.jsonl"
+    rec = {"topic": "piped", "value": "{}"}
+    path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "collector_to_emulator.cli._scenario_writes_to_file",
+        lambda: False,
+    )
+
+    run()
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert 'topic: "piped"' in captured.out
+    assert not (tmp_path / "scenario.yaml").exists()
 
 
 def test_run_empty_jsonl_writes_empty_scenario(

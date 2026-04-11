@@ -111,14 +111,11 @@ def _yaml_headers_block(headers: dict[str, Any], indent: int) -> list[str]:
     return lines
 
 
-def write_scenario_yaml(
+def build_scenario_yaml(
     records: list[dict[str, Any]], templates_dir: Path
-) -> None:
+) -> str:
     if not records:
-        _SCENARIO_PATH.write_text(
-            _SCENARIO_PREAMBLE + "steps: []\n", encoding="utf-8"
-        )
-        return
+        return _SCENARIO_PREAMBLE + "steps: []\n"
     n = len(records)
     width = max(1, len(str(n)))
     lines: list[str] = [_SCENARIO_PREAMBLE.rstrip("\n"), "steps:"]
@@ -136,7 +133,21 @@ def write_scenario_yaml(
             step_lines.append(f"      key: {_yaml_scalar(record.get('key'))}")
         step_lines.extend(_yaml_headers_block(headers, indent=6))
         lines.append("\n".join(step_lines))
-    _SCENARIO_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "\n".join(lines) + "\n"
+
+
+def write_scenario_output(
+    content: str,
+    *,
+    scenario_path: Path | None,
+    stdout_is_tty: bool,
+) -> None:
+    """Write scenario YAML to stdout when piped/redirected; else to file."""
+    if not stdout_is_tty:
+        sys.stdout.write(content)
+        return
+    out = scenario_path if scenario_path is not None else _SCENARIO_PATH
+    out.write_text(content, encoding="utf-8")
 
 
 def write_templates_from_records(
@@ -162,6 +173,12 @@ def write_templates_from_records(
         body = _value_to_template_body(rec.get("value"))
         path.write_text(body, encoding="utf-8")
     return dict_records
+
+
+def _scenario_writes_to_file() -> bool:
+    """True when scenario YAML should be written to disk; False when piped
+    stdout."""
+    return sys.stdout.isatty()
 
 
 def open_jsonl_source(args: argparse.Namespace) -> tuple[TextIO, bool]:
@@ -205,6 +222,16 @@ def run() -> None:
         help="template output directory (default: templates/)",
     )
     parser.add_argument(
+        "-s",
+        "--scenario",
+        dest="scenario",
+        metavar="PATH",
+        help=(
+            "scenario YAML path when stdout is a TTY "
+            "(default: scenario.yaml)"
+        ),
+    )
+    parser.add_argument(
         "jsonl",
         nargs="?",
         metavar="JSONL",
@@ -230,7 +257,13 @@ def run() -> None:
             else _TEMPLATES_DIR
         )
         dict_records = write_templates_from_records(records, templates_dir)
-        write_scenario_yaml(dict_records, templates_dir)
+        scenario_text = build_scenario_yaml(dict_records, templates_dir)
+        scenario_path = Path(args.scenario) if args.scenario else None
+        write_scenario_output(
+            scenario_text,
+            scenario_path=scenario_path,
+            stdout_is_tty=_scenario_writes_to_file(),
+        )
     except ValueError as e:
         print_to_stderr_and_exit(e, 1)
         return

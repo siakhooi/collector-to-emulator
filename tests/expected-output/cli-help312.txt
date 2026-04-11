@@ -1,4 +1,4 @@
-usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [JSONL]
+usage: collector-to-emulator [-h] [-v] [-i PATH] [-t DIR] [-s PATH] [JSONL]
 
 convert kafka-collector output into kafka-emulator config
 
@@ -12,3 +12,6 @@ options:
                         JSONL file (ignored when stdin is piped)
   -t DIR, --template-dir DIR
                         template output directory (default: templates/)
+  -s PATH, --scenario PATH
+                        scenario YAML path when stdout is a TTY (default:
+                        scenario.yaml)
