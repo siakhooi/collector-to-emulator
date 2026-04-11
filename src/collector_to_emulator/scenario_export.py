@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Mapping, TypedDict, cast
 
 DEFAULT_SCENARIO_NAME = "Unnamed"
 DEFAULT_BOOTSTRAP_SERVERS = "kafka-test:9092"
@@ -24,6 +24,22 @@ class SleepTiming:
 
 DEFAULT_SLEEP_TIMING = SleepTiming()
 
+
+class CollectorRecord(TypedDict, total=False):
+    """JSON object shape from collector JSONL.
+
+    ``topic`` is required for template/scenario export; other fields are
+    optional. Values match decoded JSON (and may be narrowed at runtime).
+    """
+
+    topic: object
+    key: object
+    headers: dict[str, object]
+    header: dict[str, object]
+    timestamp: object
+    value: object
+
+
 _UNSAFE_TOPIC_CHARS = re.compile(r"[^\w\-.]+", re.UNICODE)
 _YAML_PLAIN_HEADER_KEY = re.compile(r"^[a-zA-Z_][\w\-]*$")
 
@@ -38,7 +54,7 @@ def _safe_topic_filename(topic: str) -> str:
     return s if s else "topic"
 
 
-def _value_to_template_body(value: Any) -> str:
+def _value_to_template_body(value: object) -> str:
     """Parse JSON-encoded string payloads; otherwise serialize as JSON text."""
     if value is None:
         return ""
@@ -51,7 +67,7 @@ def _value_to_template_body(value: Any) -> str:
     return json.dumps(value, indent=2, ensure_ascii=False) + "\n"
 
 
-def _template_basename(seq: int, width: int, topic: Any) -> str:
+def _template_basename(seq: int, width: int, topic: object) -> str:
     topic_part = _safe_topic_filename(topic)
     return f"{seq:0{width}d}-{topic_part}.json"
 
@@ -70,17 +86,17 @@ def _body_path_for_template(
         return full.as_posix()
 
 
-def _record_headers(record: dict[str, Any]) -> dict[str, Any]:
+def _record_headers(record: Mapping[str, object]) -> dict[str, object]:
     if "headers" in record:
         h = record["headers"]
     else:
         h = record.get("header", {})
     if not isinstance(h, dict):
         raise ValueError("'headers' / 'header' must be a JSON object")
-    return h
+    return cast(dict[str, object], h)
 
 
-def _yaml_scalar(value: Any) -> str:
+def _yaml_scalar(value: object) -> str:
     if value is None:
         return "null"
     if isinstance(value, bool):
@@ -101,7 +117,7 @@ def _scenario_preamble(scenario_name: str) -> str:
     )
 
 
-def _is_empty_key(key: Any) -> bool:
+def _is_empty_key(key: object | None) -> bool:
     if key is None:
         return True
     if isinstance(key, str) and not key:
@@ -110,7 +126,7 @@ def _is_empty_key(key: Any) -> bool:
 
 
 def _record_timestamp_ms(
-    record: dict[str, Any], *, line_desc: str
+    record: Mapping[str, object], *, line_desc: str
 ) -> int | None:
     """Return collector epoch milliseconds from ``timestamp``, or None if
     absent."""
@@ -176,7 +192,7 @@ def _sleep_gap_lines(
     return base_ms, []
 
 
-def _yaml_headers_block(headers: dict[str, Any], indent: int) -> list[str]:
+def _yaml_headers_block(headers: dict[str, object], indent: int) -> list[str]:
     pad = " " * indent
     if not headers:
         return []
@@ -190,7 +206,7 @@ def _yaml_headers_block(headers: dict[str, Any], indent: int) -> list[str]:
     return lines
 
 
-def _yaml_send_step(record: dict[str, Any], *, body_path: str) -> list[str]:
+def _yaml_send_step(record: CollectorRecord, *, body_path: str) -> list[str]:
     """Lines for one ``send:`` step (topic, body template path, optional key,
     headers)."""
     topic_s = _yaml_scalar(record["topic"])
@@ -206,7 +222,7 @@ def _yaml_send_step(record: dict[str, Any], *, body_path: str) -> list[str]:
 
 
 def build_scenario_yaml(
-    records: list[dict[str, Any]],
+    records: list[CollectorRecord],
     templates_dir: Path,
     *,
     scenario_name: str = DEFAULT_SCENARIO_NAME,
@@ -239,12 +255,12 @@ def build_scenario_yaml(
 
 
 def write_templates_from_records(
-    records: list[Any], templates_dir: Path
-) -> list[dict[str, Any]]:
+    records: list[object], templates_dir: Path
+) -> list[CollectorRecord]:
     n = len(records)
     width = _index_width(n)
     templates_dir.mkdir(parents=True, exist_ok=True)
-    dict_records: list[dict[str, Any]] = []
+    dict_records: list[CollectorRecord] = []
     for seq, record in enumerate(records, start=1):
         if not isinstance(record, dict):
             raise ValueError(
@@ -253,7 +269,7 @@ def write_templates_from_records(
             )
         if "topic" not in record:
             raise ValueError(f"record {seq}: missing required field 'topic'")
-        rec = dict(record)
+        rec = cast(CollectorRecord, dict(record))
         _record_headers(rec)
         dict_records.append(rec)
         name = _template_basename(seq, width, rec["topic"])
