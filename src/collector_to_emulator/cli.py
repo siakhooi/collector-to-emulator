@@ -10,6 +10,7 @@ from collector_to_emulator.scenario_export import (
     SLEEP_DURATION_CAP_MS,
     SLEEP_GAP_THRESHOLD_MS,
     SLEEP_ROUND_MS,
+    SleepTiming,
     build_scenario_yaml,
     write_templates_from_records,
 )
@@ -177,9 +178,11 @@ def run() -> None:
             dict_records,
             templates_dir,
             scenario_name=scenario_name,
-            sleep_gap_threshold_ms=args.sleep_gap_ms,
-            sleep_duration_cap_ms=args.sleep_cap_ms,
-            sleep_round_ms=args.sleep_round_ms,
+            sleep_timing=SleepTiming(
+                gap_threshold_ms=args.sleep_gap_ms,
+                duration_cap_ms=args.sleep_cap_ms,
+                round_ms=args.sleep_round_ms,
+            ),
         )
         scenario_path = Path(args.scenario) if args.scenario else None
         write_scenario_output(

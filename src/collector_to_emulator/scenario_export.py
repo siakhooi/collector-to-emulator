@@ -2,6 +2,7 @@
 
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,18 @@ DEFAULT_BOOTSTRAP_SERVERS = "kafka-test:9092"
 SLEEP_GAP_THRESHOLD_MS = 500
 SLEEP_DURATION_CAP_MS = 5000
 SLEEP_ROUND_MS = 1
+
+
+@dataclass(frozen=True, slots=True)
+class SleepTiming:
+    """Threshold, cap, and rounding for timestamp-gap sleep steps."""
+
+    gap_threshold_ms: int = SLEEP_GAP_THRESHOLD_MS
+    duration_cap_ms: int = SLEEP_DURATION_CAP_MS
+    round_ms: int = SLEEP_ROUND_MS
+
+
+DEFAULT_SLEEP_TIMING = SleepTiming()
 
 _UNSAFE_TOPIC_CHARS = re.compile(r"[^\w\-.]+", re.UNICODE)
 _YAML_PLAIN_HEADER_KEY = re.compile(r"^[a-zA-Z_][\w\-]*$")
@@ -147,19 +160,17 @@ def _sleep_gap_lines(
     *,
     base_ms: int | None,
     ts_ms: int,
-    sleep_gap_threshold_ms: int,
-    sleep_duration_cap_ms: int,
-    sleep_round_ms: int,
+    timing: SleepTiming,
 ) -> tuple[int | None, list[str]]:
     """Advance timestamp baseline and optionally emit one sleep step (as a
     single multi-line string for ``lines.append``)."""
     if base_ms is None:
         return ts_ms, []
     gap_ms = ts_ms - base_ms
-    if gap_ms > sleep_gap_threshold_ms:
+    if gap_ms > timing.gap_threshold_ms:
         sleep_ms = _quantize_sleep_ms(
-            min(gap_ms, sleep_duration_cap_ms),
-            sleep_round_ms,
+            min(gap_ms, timing.duration_cap_ms),
+            timing.round_ms,
         )
         return ts_ms, ["\n".join(_yaml_sleep_step(sleep_ms))]
     return base_ms, []
@@ -199,9 +210,7 @@ def build_scenario_yaml(
     templates_dir: Path,
     *,
     scenario_name: str = DEFAULT_SCENARIO_NAME,
-    sleep_gap_threshold_ms: int = SLEEP_GAP_THRESHOLD_MS,
-    sleep_duration_cap_ms: int = SLEEP_DURATION_CAP_MS,
-    sleep_round_ms: int = SLEEP_ROUND_MS,
+    sleep_timing: SleepTiming = DEFAULT_SLEEP_TIMING,
     relative_to: Path | None = None,
 ) -> str:
     preamble = _scenario_preamble(scenario_name).rstrip("\n")
@@ -218,9 +227,7 @@ def build_scenario_yaml(
             base_ms, sleep_chunks = _sleep_gap_lines(
                 base_ms=base_ms,
                 ts_ms=ts_ms,
-                sleep_gap_threshold_ms=sleep_gap_threshold_ms,
-                sleep_duration_cap_ms=sleep_duration_cap_ms,
-                sleep_round_ms=sleep_round_ms,
+                timing=sleep_timing,
             )
             lines.extend(sleep_chunks)
         basename = _template_basename(seq, width, record["topic"])

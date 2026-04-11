@@ -1,9 +1,7 @@
 from pathlib import Path
 
 from collector_to_emulator.scenario_export import (
-    SLEEP_DURATION_CAP_MS,
-    SLEEP_GAP_THRESHOLD_MS,
-    SLEEP_ROUND_MS,
+    SleepTiming,
     _body_path_for_template,
     _sleep_gap_lines,
     build_scenario_yaml,
@@ -43,9 +41,7 @@ def test_sleep_gap_lines_first_timestamp_sets_base_no_chunk() -> None:
     new_base, chunks = _sleep_gap_lines(
         base_ms=None,
         ts_ms=1_000,
-        sleep_gap_threshold_ms=SLEEP_GAP_THRESHOLD_MS,
-        sleep_duration_cap_ms=SLEEP_DURATION_CAP_MS,
-        sleep_round_ms=SLEEP_ROUND_MS,
+        timing=SleepTiming(),
     )
     assert new_base == 1_000
     assert chunks == []
@@ -55,9 +51,11 @@ def test_sleep_gap_lines_small_gap_keeps_base() -> None:
     new_base, chunks = _sleep_gap_lines(
         base_ms=1_000,
         ts_ms=1_200,
-        sleep_gap_threshold_ms=500,
-        sleep_duration_cap_ms=5_000,
-        sleep_round_ms=1,
+        timing=SleepTiming(
+            gap_threshold_ms=500,
+            duration_cap_ms=5_000,
+            round_ms=1,
+        ),
     )
     assert new_base == 1_000
     assert chunks == []
@@ -67,24 +65,28 @@ def test_sleep_gap_lines_large_gap_emits_one_sleep_chunk() -> None:
     new_base, chunks = _sleep_gap_lines(
         base_ms=1_000,
         ts_ms=2_500,
-        sleep_gap_threshold_ms=500,
-        sleep_duration_cap_ms=5_000,
-        sleep_round_ms=1,
+        timing=SleepTiming(
+            gap_threshold_ms=500,
+            duration_cap_ms=5_000,
+            round_ms=1,
+        ),
     )
     assert new_base == 2_500
     assert len(chunks) == 1
     assert "  - sleep:" in chunks[0]
     assert "Waiting 1500ms" in chunks[0]
-    assert "duration: \"1500ms\"" in chunks[0]
+    assert 'duration: "1500ms"' in chunks[0]
 
 
 def test_sleep_gap_lines_respects_cap() -> None:
     new_base, chunks = _sleep_gap_lines(
         base_ms=0,
         ts_ms=100_000,
-        sleep_gap_threshold_ms=500,
-        sleep_duration_cap_ms=2_000,
-        sleep_round_ms=1,
+        timing=SleepTiming(
+            gap_threshold_ms=500,
+            duration_cap_ms=2_000,
+            round_ms=1,
+        ),
     )
     assert new_base == 100_000
     assert len(chunks) == 1
@@ -95,9 +97,11 @@ def test_sleep_gap_lines_respects_round_step() -> None:
     new_base, chunks = _sleep_gap_lines(
         base_ms=0,
         ts_ms=1_550,
-        sleep_gap_threshold_ms=500,
-        sleep_duration_cap_ms=5_000,
-        sleep_round_ms=100,
+        timing=SleepTiming(
+            gap_threshold_ms=500,
+            duration_cap_ms=5_000,
+            round_ms=100,
+        ),
     )
     assert new_base == 1_550
     assert len(chunks) == 1
