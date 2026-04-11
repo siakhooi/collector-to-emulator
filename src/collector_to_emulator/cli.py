@@ -30,11 +30,12 @@ def write_scenario_output(
     content: str,
     *,
     scenario_path: Path | None,
+    stdout: TextIO,
     stdout_is_tty: bool,
 ) -> None:
-    """Write scenario YAML to stdout when piped/redirected; else to file."""
+    """Write scenario YAML to ``stdout`` when not a TTY; else to file."""
     if not stdout_is_tty:
-        sys.stdout.write(content)
+        stdout.write(content)
         return
     out = scenario_path if scenario_path is not None else _SCENARIO_PATH
     out.write_text(content, encoding="utf-8")
@@ -46,11 +47,18 @@ def _scenario_writes_to_file() -> bool:
     return sys.stdout.isatty()
 
 
-def open_jsonl_source(args: argparse.Namespace) -> tuple[TextIO, bool]:
+def open_jsonl_source(
+    args: argparse.Namespace,
+    *,
+    stdin: TextIO | None = None,
+    stdin_is_tty: bool | None = None,
+) -> tuple[TextIO, bool]:
     """Return (stream, must_close).
     Priority: piped stdin, then -i, then positional."""
-    if not sys.stdin.isatty():
-        return sys.stdin, False
+    in_stream = sys.stdin if stdin is None else stdin
+    is_tty = in_stream.isatty() if stdin_is_tty is None else stdin_is_tty
+    if not is_tty:
+        return in_stream, False
     if args.input_path is not None:
         return open(args.input_path, encoding="utf-8"), True
     if args.jsonl is not None:
@@ -151,7 +159,13 @@ def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
     return parser
 
 
-def run() -> None:
+def run(
+    *,
+    stdin: TextIO | None = None,
+    stdin_is_tty: bool | None = None,
+    stdout: TextIO | None = None,
+    stdout_is_tty: bool | None = None,
+) -> None:
     args = build_parser().parse_args()
 
     if args.sleep_round_ms < 1:
@@ -162,7 +176,9 @@ def run() -> None:
         return
 
     try:
-        stream, must_close = open_jsonl_source(args)
+        stream, must_close = open_jsonl_source(
+            args, stdin=stdin, stdin_is_tty=stdin_is_tty
+        )
     except OSError as e:
         print_to_stderr_and_exit(e, 1)
         return
@@ -190,10 +206,18 @@ def run() -> None:
             ),
         )
         scenario_path = Path(args.scenario) if args.scenario else None
+        out = sys.stdout if stdout is None else stdout
+        if stdout_is_tty is not None:
+            scenario_tty = stdout_is_tty
+        elif stdout is None:
+            scenario_tty = _scenario_writes_to_file()
+        else:
+            scenario_tty = out.isatty()
         write_scenario_output(
             scenario_text,
             scenario_path=scenario_path,
-            stdout_is_tty=_scenario_writes_to_file(),
+            stdout=out,
+            stdout_is_tty=scenario_tty,
         )
     except ValueError as e:
         print_to_stderr_and_exit(e, 1)

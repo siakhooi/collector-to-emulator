@@ -4,7 +4,12 @@ import sys
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
-from collector_to_emulator.cli import build_parser, run
+from collector_to_emulator.cli import (
+    build_parser,
+    open_jsonl_source,
+    run,
+    write_scenario_output,
+)
 
 import pytest
 
@@ -25,6 +30,29 @@ def test_build_parser_version_uses_pkg_version(capsys, opt: str) -> None:
         p.parse_args([opt])
     assert exc_info.value.code == 0
     assert capsys.readouterr().out == "collector-to-emulator 0.test.0\n"
+
+
+def test_write_scenario_output_writes_to_injected_stdout() -> None:
+    buf = io.StringIO()
+    write_scenario_output(
+        "name: x\nsteps: []\n",
+        scenario_path=None,
+        stdout=buf,
+        stdout_is_tty=False,
+    )
+    assert buf.getvalue() == "name: x\nsteps: []\n"
+
+
+def test_open_jsonl_source_injected_stdin_piped() -> None:
+    payload = '{"topic": "t", "value": "{}"}\n'
+    stdin = io.StringIO(payload)
+    args = build_parser().parse_args([])
+    stream, must_close = open_jsonl_source(
+        args, stdin=stdin, stdin_is_tty=False
+    )
+    assert stream is stdin
+    assert must_close is False
+    assert stream.read() == payload
 
 
 @pytest.fixture(autouse=True)
