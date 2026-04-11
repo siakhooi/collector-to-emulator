@@ -194,9 +194,7 @@ def _convert_and_write_scenario(
     args: argparse.Namespace,
     stream: TextIO,
     *,
-    stdout: TextIO | None,
-    stdout_is_tty: bool | None,
-    stderr: TextIO | None,
+    streams: CliStreams,
 ) -> int:
     """Read JSONL from ``stream``, emit templates and scenario; return
     ``EXIT_OK`` or ``EXIT_ERROR``."""
@@ -221,7 +219,7 @@ def _convert_and_write_scenario(
         )
         scenario_path = Path(args.scenario) if args.scenario else None
         out, scenario_tty = _resolve_scenario_stdout_tty(
-            stdout, stdout_is_tty
+            streams.stdout, streams.stdout_is_tty
         )
         write_scenario_output(
             scenario_text,
@@ -230,7 +228,7 @@ def _convert_and_write_scenario(
             stdout_is_tty=scenario_tty,
         )
     except ValueError as e:
-        _print_error(e, stderr=stderr)
+        _print_error(e, stderr=streams.stderr)
         return EXIT_ERROR
     return EXIT_OK
 
@@ -262,13 +260,7 @@ def main(
         return EXIT_USAGE
 
     try:
-        return _convert_and_write_scenario(
-            args,
-            stream,
-            stdout=s.stdout,
-            stdout_is_tty=s.stdout_is_tty,
-            stderr=s.stderr,
-        )
+        return _convert_and_write_scenario(args, stream, streams=s)
     finally:
         if must_close:
             stream.close()
@@ -279,6 +271,7 @@ def run(
     argv: Sequence[str] | None = None,
     streams: CliStreams | None = None,
 ) -> None:
+    """Parse ``argv``, run ``main``, and ``sys.exit`` on non-``EXIT_OK``."""
     args = build_parser().parse_args(argv)
     code = main(args, streams=streams)
     if code != EXIT_OK:
