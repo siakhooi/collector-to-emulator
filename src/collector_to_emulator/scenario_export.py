@@ -53,7 +53,7 @@ def _index_width(n: int) -> int:
     return max(1, len(str(n)))
 
 
-def _safe_topic_filename(topic: str) -> str:
+def _safe_topic_filename(topic: object) -> str:
     s = _UNSAFE_TOPIC_CHARS.sub("_", str(topic).strip())
     s = s.strip("._")
     return s if s else "topic"
