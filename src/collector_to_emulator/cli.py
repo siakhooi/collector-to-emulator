@@ -54,16 +54,16 @@ def _main_fail(exc: Exception, *, stderr: TextIO | None, code: int) -> int:
 def write_scenario_output(
     content: str,
     *,
-    scenario_path: Path | None,
+    scenario_path: Path,
     stdout: TextIO,
     stdout_is_tty: bool,
 ) -> None:
-    """Write scenario YAML to ``stdout`` when not a TTY; else to file."""
+    """Write scenario YAML to ``stdout`` when not a TTY; else to
+    ``scenario_path``."""
     if not stdout_is_tty:
         stdout.write(content)
         return
-    out = scenario_path
-    out.write_text(content, encoding="utf-8")
+    scenario_path.write_text(content, encoding="utf-8")
 
 
 def _scenario_writes_to_file() -> bool:

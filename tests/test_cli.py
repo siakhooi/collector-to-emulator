@@ -41,11 +41,24 @@ def test_write_scenario_output_writes_to_injected_stdout() -> None:
     buf = io.StringIO()
     write_scenario_output(
         "name: x\nsteps: []\n",
-        scenario_path=None,
+        scenario_path=Path("unused.yaml"),
         stdout=buf,
         stdout_is_tty=False,
     )
     assert buf.getvalue() == "name: x\nsteps: []\n"
+
+
+def test_write_scenario_output_tty_writes_to_scenario_path(
+    tmp_path: Path,
+) -> None:
+    out_file = tmp_path / "scenario.yaml"
+    write_scenario_output(
+        "name: x\nsteps: []\n",
+        scenario_path=out_file,
+        stdout=io.StringIO(),
+        stdout_is_tty=True,
+    )
+    assert out_file.read_text(encoding="utf-8") == "name: x\nsteps: []\n"
 
 
 def test_parser_rejects_non_positive_sleep_round(capsys) -> None:
