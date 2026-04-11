@@ -1,5 +1,6 @@
 import argparse
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from importlib.metadata import version
 from pathlib import Path
@@ -256,7 +257,7 @@ def main(
 
 def run(
     *,
-    argv: list[str] | None = None,
+    argv: Sequence[str] | None = None,
     streams: CliStreams | None = None,
 ) -> None:
     args = build_parser().parse_args(argv)
