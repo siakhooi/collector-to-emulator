@@ -43,10 +43,16 @@ def _template_basename(seq: int, width: int, topic: Any) -> str:
     return f"{seq:0{width}d}-{topic_part}.json"
 
 
-def _body_path_for_template(templates_dir: Path, basename: str) -> str:
+def _body_path_for_template(
+    templates_dir: Path,
+    basename: str,
+    *,
+    relative_to: Path | None = None,
+) -> str:
     full = templates_dir / basename
+    base = Path.cwd() if relative_to is None else relative_to
     try:
-        return str(full.relative_to(Path.cwd()))
+        return str(full.relative_to(base))
     except ValueError:
         return full.as_posix()
 
@@ -159,6 +165,7 @@ def build_scenario_yaml(
     sleep_gap_threshold_ms: int = SLEEP_GAP_THRESHOLD_MS,
     sleep_duration_cap_ms: int = SLEEP_DURATION_CAP_MS,
     sleep_round_ms: int = SLEEP_ROUND_MS,
+    relative_to: Path | None = None,
 ) -> str:
     preamble = _scenario_preamble(scenario_name).rstrip("\n")
     if not records:
@@ -183,7 +190,9 @@ def build_scenario_yaml(
                     lines.append("\n".join(_yaml_sleep_step(sleep_ms)))
                     base_ms = ts_ms
         basename = _template_basename(seq, width, record["topic"])
-        body = _body_path_for_template(templates_dir, basename)
+        body = _body_path_for_template(
+            templates_dir, basename, relative_to=relative_to
+        )
         topic_s = _yaml_scalar(record["topic"])
         headers = _record_headers(record)
         step_lines = [
