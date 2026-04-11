@@ -143,6 +143,28 @@ def _yaml_sleep_step(sleep_ms: int) -> list[str]:
     ]
 
 
+def _sleep_gap_lines(
+    *,
+    base_ms: int | None,
+    ts_ms: int,
+    sleep_gap_threshold_ms: int,
+    sleep_duration_cap_ms: int,
+    sleep_round_ms: int,
+) -> tuple[int | None, list[str]]:
+    """Advance timestamp baseline and optionally emit one sleep step (as a
+    single multi-line string for ``lines.append``)."""
+    if base_ms is None:
+        return ts_ms, []
+    gap_ms = ts_ms - base_ms
+    if gap_ms > sleep_gap_threshold_ms:
+        sleep_ms = _quantize_sleep_ms(
+            min(gap_ms, sleep_duration_cap_ms),
+            sleep_round_ms,
+        )
+        return ts_ms, ["\n".join(_yaml_sleep_step(sleep_ms))]
+    return base_ms, []
+
+
 def _yaml_headers_block(headers: dict[str, Any], indent: int) -> list[str]:
     pad = " " * indent
     if not headers:
@@ -193,17 +215,14 @@ def build_scenario_yaml(
         line_desc = f"record {seq}"
         ts_ms = _record_timestamp_ms(record, line_desc=line_desc)
         if ts_ms is not None:
-            if base_ms is None:
-                base_ms = ts_ms
-            else:
-                gap_ms = ts_ms - base_ms
-                if gap_ms > sleep_gap_threshold_ms:
-                    sleep_ms = _quantize_sleep_ms(
-                        min(gap_ms, sleep_duration_cap_ms),
-                        sleep_round_ms,
-                    )
-                    lines.append("\n".join(_yaml_sleep_step(sleep_ms)))
-                    base_ms = ts_ms
+            base_ms, sleep_chunks = _sleep_gap_lines(
+                base_ms=base_ms,
+                ts_ms=ts_ms,
+                sleep_gap_threshold_ms=sleep_gap_threshold_ms,
+                sleep_duration_cap_ms=sleep_duration_cap_ms,
+                sleep_round_ms=sleep_round_ms,
+            )
+            lines.extend(sleep_chunks)
         basename = _template_basename(seq, width, record["topic"])
         body_path = _body_path_for_template(
             templates_dir, basename, relative_to=relative_to
