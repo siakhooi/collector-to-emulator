@@ -47,6 +47,18 @@ def _scenario_writes_to_file() -> bool:
     return sys.stdout.isatty()
 
 
+def _resolve_scenario_stdout_tty(
+    stdout: TextIO | None,
+    stdout_is_tty: bool | None,
+) -> tuple[TextIO, bool]:
+    out = sys.stdout if stdout is None else stdout
+    if stdout_is_tty is not None:
+        return out, stdout_is_tty
+    if stdout is None:
+        return out, _scenario_writes_to_file()
+    return out, out.isatty()
+
+
 def open_jsonl_source(
     args: argparse.Namespace,
     *,
@@ -208,13 +220,7 @@ def main(
             ),
         )
         scenario_path = Path(args.scenario) if args.scenario else None
-        out = sys.stdout if stdout is None else stdout
-        if stdout_is_tty is not None:
-            scenario_tty = stdout_is_tty
-        elif stdout is None:
-            scenario_tty = _scenario_writes_to_file()
-        else:
-            scenario_tty = out.isatty()
+        out, scenario_tty = _resolve_scenario_stdout_tty(stdout, stdout_is_tty)
         write_scenario_output(
             scenario_text,
             scenario_path=scenario_path,
@@ -233,18 +239,21 @@ def main(
 
 def run(
     *,
+    argv: list[str] | None = None,
     stdin: TextIO | None = None,
     stdin_is_tty: bool | None = None,
     stdout: TextIO | None = None,
     stdout_is_tty: bool | None = None,
+    stderr: TextIO | None = None,
 ) -> None:
-    args = build_parser().parse_args()
+    args = build_parser().parse_args(argv)
     code = main(
         args,
         stdin=stdin,
         stdin_is_tty=stdin_is_tty,
         stdout=stdout,
         stdout_is_tty=stdout_is_tty,
+        stderr=stderr,
     )
     if code != 0:
         sys.exit(code)

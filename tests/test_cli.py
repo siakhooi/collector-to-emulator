@@ -94,13 +94,9 @@ def _patch_scenario_to_file(monkeypatch: pytest.MonkeyPatch) -> None:
 )
 def test_run_help(monkeypatch, capsys, option_help):
     monkeypatch.setenv("COLUMNS", "80")
-    monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", option_help],
-    )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=[option_help])
     assert pytest_wrapped_e.type is SystemExit
     assert pytest_wrapped_e.value.code == 0
 
@@ -118,13 +114,9 @@ def test_run_help(monkeypatch, capsys, option_help):
 )
 def test_run_help312(monkeypatch, capsys, option_help):
     monkeypatch.setenv("COLUMNS", "80")
-    monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", option_help],
-    )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=[option_help])
     assert pytest_wrapped_e.type is SystemExit
     assert pytest_wrapped_e.value.code == 0
 
@@ -137,13 +129,8 @@ def test_run_help312(monkeypatch, capsys, option_help):
 
 @pytest.mark.parametrize("option_version", ["-v", "--version"])
 def test_run_show_version(monkeypatch, capsys, option_version):
-    monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", option_version],
-    )
-
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=[option_version])
     assert pytest_wrapped_e.type is SystemExit
     assert pytest_wrapped_e.value.code == 0
 
@@ -155,13 +142,8 @@ def test_run_show_version(monkeypatch, capsys, option_version):
 
 @pytest.mark.parametrize("options", [["-p"], ["-p", "-j"]])
 def test_run_wrong_options(monkeypatch, capsys, options):
-    monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator"] + options,
-    )
-
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=list(options))
     assert pytest_wrapped_e.type is SystemExit
     assert pytest_wrapped_e.value.code == 2
 
@@ -176,13 +158,12 @@ def test_run_wrong_options(monkeypatch, capsys, options):
 
 
 def test_run_no_input_when_tty(monkeypatch, capsys):
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator"])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty", lambda: True
     )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=[])
     assert pytest_wrapped_e.value.code == 2
 
     captured = capsys.readouterr()
@@ -196,15 +177,11 @@ def test_run_scenario_name_cli(monkeypatch, tmp_path: Path, capsys, flag: str):
     rec = {"topic": "alpha", "value": json.dumps({"x": 1})}
     path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
     monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", str(path), flag, "replay-from-collector"],
-    )
-    monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[str(path), flag, "replay-from-collector"])
     assert capsys.readouterr().err == ""
     scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
     assert scenario.startswith('name: "replay-from-collector"\n')
@@ -215,13 +192,12 @@ def test_run_reads_jsonl_positional(monkeypatch, tmp_path: Path, capsys):
     path = tmp_path / "in.jsonl"
     rec = {"topic": "alpha", "value": json.dumps({"x": 1})}
     path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[str(path)])
     assert capsys.readouterr().err == ""
     out = (tmp_path / "templates" / "1-alpha.json").read_text(encoding="utf-8")
     assert json.loads(out) == {"x": 1}
@@ -245,13 +221,12 @@ def test_run_scenario_includes_key_and_headers_when_set(
         "value": "{}",
     }
     path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[str(path)])
     assert capsys.readouterr().err == ""
     scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
     assert 'key: "k1"' in scenario
@@ -264,13 +239,12 @@ def test_run_reads_jsonl_dash_i(monkeypatch, tmp_path: Path, capsys):
     path = tmp_path / "in.jsonl"
     rec = {"topic": "beta", "value": json.dumps({"y": 2})}
     path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", "-i", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=["-i", str(path)])
     assert capsys.readouterr().err == ""
     assert (tmp_path / "templates" / "1-beta.json").is_file()
 
@@ -285,15 +259,11 @@ def test_run_template_dir_override(
     path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
     custom = tmp_path / "my-templates"
     monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", "-i", str(path), flag, str(custom)],
-    )
-    monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=["-i", str(path), flag, str(custom)])
     assert capsys.readouterr().err == ""
     assert (custom / "1-x.json").is_file()
     assert not (tmp_path / "templates").exists()
@@ -301,14 +271,13 @@ def test_run_template_dir_override(
 
 def test_run_reads_jsonl_from_stdin(monkeypatch, tmp_path: Path, capsys):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator"])
     rec = {"topic": "stdin", "value": json.dumps({"z": 3})}
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin",
         io.StringIO(json.dumps(rec) + "\n"),
     )
 
-    run()
+    run(argv=[])
     assert capsys.readouterr().err == ""
     assert (tmp_path / "templates" / "1-stdin.json").is_file()
 
@@ -316,13 +285,12 @@ def test_run_reads_jsonl_from_stdin(monkeypatch, tmp_path: Path, capsys):
 def test_run_stdin_priority_over_dash_i(monkeypatch, tmp_path: Path, capsys):
     good = tmp_path / "good.jsonl"
     good.write_text('{"ok": true}\n', encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", "-i", str(good)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin", io.StringIO("not-json\n")
     )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=["-i", str(good)])
     assert pytest_wrapped_e.value.code == 1
     assert "invalid JSON" in capsys.readouterr().err
 
@@ -335,15 +303,11 @@ def test_run_dash_i_priority_over_positional(monkeypatch, tmp_path: Path):
     bad = tmp_path / "bad.jsonl"
     bad.write_text("not-json\n", encoding="utf-8")
     monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", "-i", str(good), str(bad)],
-    )
-    monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=["-i", str(good), str(bad)])
     content = (tmp_path / "templates" / "1-ok.json").read_text(
         encoding="utf-8"
     )
@@ -358,13 +322,12 @@ def test_run_template_padding_ten_records(monkeypatch, tmp_path: Path, capsys):
         for i in range(10)
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[str(path)])
     assert capsys.readouterr().err == ""
     assert (tmp_path / "templates" / "01-t0.json").is_file()
     assert (tmp_path / "templates" / "10-t9.json").is_file()
@@ -374,14 +337,13 @@ def test_run_missing_topic_exit_code(monkeypatch, tmp_path: Path, capsys):
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "in.jsonl"
     path.write_text(json.dumps({"value": "{}"}) + "\n", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=[str(path)])
     assert pytest_wrapped_e.value.code == 1
     assert "topic" in capsys.readouterr().err
 
@@ -396,15 +358,11 @@ def test_run_scenario_path_override(
     path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
     custom = tmp_path / "custom.yaml"
     monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", flag, str(custom), str(path)],
-    )
-    monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[flag, str(custom), str(path)])
     captured = capsys.readouterr()
     assert captured.err == ""
     text = custom.read_text(encoding="utf-8")
@@ -419,7 +377,6 @@ def test_run_writes_scenario_to_stdout_when_stdout_not_tty(
     path = tmp_path / "in.jsonl"
     rec = {"topic": "piped", "value": "{}"}
     path.write_text(json.dumps(rec) + "\n", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
@@ -429,7 +386,7 @@ def test_run_writes_scenario_to_stdout_when_stdout_not_tty(
         lambda: False,
     )
 
-    run()
+    run(argv=[str(path)])
     captured = capsys.readouterr()
     assert captured.err == ""
     assert 'topic: "piped"' in captured.out
@@ -442,13 +399,12 @@ def test_run_empty_jsonl_writes_empty_scenario(
     monkeypatch.chdir(tmp_path)
     path = tmp_path / "empty.jsonl"
     path.write_text("\n", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[str(path)])
     assert capsys.readouterr().err == ""
     assert (
         (tmp_path / "scenario.yaml")
@@ -473,15 +429,11 @@ def test_run_timestamps_sleep_rounded_to_nearest_ms(
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", "-r", "40", str(path)],
-    )
-    monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=["-r", "40", str(path)])
     assert capsys.readouterr().err == ""
     scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
     assert 'message: "Waiting 1520ms"' in scenario
@@ -490,18 +442,26 @@ def test_run_timestamps_sleep_rounded_to_nearest_ms(
 
 def test_run_invalid_sleep_round_exit_code(monkeypatch, capsys):
     monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", "-r", "0"],
-    )
-    monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=["-r", "0"])
     assert pytest_wrapped_e.value.code == 2
     assert "at least 1" in capsys.readouterr().err
+
+
+def test_run_forwards_stderr_to_buffer(monkeypatch) -> None:
+    err_buf = io.StringIO()
+    monkeypatch.setattr(
+        "collector_to_emulator.cli.sys.stdin.isatty",
+        lambda: True,
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        run(argv=["-r", "0"], stderr=err_buf)
+    assert exc_info.value.code == 2
+    assert "at least 1" in err_buf.getvalue()
 
 
 def test_run_timestamps_emit_sleep_when_gap_over_500ms(
@@ -519,13 +479,12 @@ def test_run_timestamps_emit_sleep_when_gap_over_500ms(
         + "\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[str(path)])
     assert capsys.readouterr().err == ""
     scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
     assert "  - sleep:" in scenario
@@ -550,15 +509,11 @@ def test_run_timestamps_sleep_when_gap_over_custom_sleep_gap(
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", "-g", "200", str(path)],
-    )
-    monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=["-g", "200", str(path)])
     assert capsys.readouterr().err == ""
     scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
     assert "  - sleep:" in scenario
@@ -580,13 +535,12 @@ def test_run_timestamps_no_sleep_when_gap_at_most_500ms(
         + "\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[str(path)])
     assert capsys.readouterr().err == ""
     scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
     assert "sleep:" not in scenario
@@ -608,15 +562,11 @@ def test_run_timestamps_sleep_respects_custom_sleep_cap(
         encoding="utf-8",
     )
     monkeypatch.setattr(
-        "sys.argv",
-        ["collector-to-emulator", "-c", "3000", str(path)],
-    )
-    monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=["-c", "3000", str(path)])
     assert capsys.readouterr().err == ""
     scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
     assert 'message: "Waiting 3000ms"' in scenario
@@ -638,13 +588,12 @@ def test_run_timestamps_sleep_capped_at_5s(
         + "\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
-    run()
+    run(argv=[str(path)])
     assert capsys.readouterr().err == ""
     scenario = (tmp_path / "scenario.yaml").read_text(encoding="utf-8")
     assert 'message: "Waiting 5000ms"' in scenario
@@ -654,13 +603,12 @@ def test_run_timestamps_sleep_capped_at_5s(
 def test_run_invalid_jsonl_exit_code(monkeypatch, tmp_path: Path, capsys):
     path = tmp_path / "bad.jsonl"
     path.write_text("not-json\n", encoding="utf-8")
-    monkeypatch.setattr("sys.argv", ["collector-to-emulator", str(path)])
     monkeypatch.setattr(
         "collector_to_emulator.cli.sys.stdin.isatty",
         lambda: True,
     )
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        run()
+        run(argv=[str(path)])
     assert pytest_wrapped_e.value.code == 1
     assert "invalid JSON" in capsys.readouterr().err
