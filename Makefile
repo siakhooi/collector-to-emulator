@@ -2,6 +2,7 @@ help:
 clean:
 	rm -rf dist target coverage .tox .coverage \
 	src/collector_to_emulator/__pycache__ \
+	templates/ templates123/ scenario.yaml s1.yaml s2.yaml build.log testings/templates/ testings/scenario.yaml \
 	tests/__pycache__ .pytest_cache .venv
 run: run-s1
 run-1:
