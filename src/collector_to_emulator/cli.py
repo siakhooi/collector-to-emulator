@@ -45,6 +45,12 @@ def _print_error(e: Exception, *, stderr: TextIO | None = None) -> None:
     print(f"Error: {e}", file=out)
 
 
+def _main_fail(exc: Exception, *, stderr: TextIO | None, code: int) -> int:
+    """Log ``exc`` to stderr and return the exit code (for ``main``)."""
+    _print_error(exc, stderr=stderr)
+    return code
+
+
 def write_scenario_output(
     content: str,
     *,
@@ -263,11 +269,9 @@ def main(
             args, stdin=s.stdin, stdin_is_tty=s.stdin_is_tty
         )
     except OSError as e:
-        _print_error(e, stderr=s.stderr)
-        return EXIT_ERROR
+        return _main_fail(e, stderr=s.stderr, code=EXIT_ERROR)
     except ValueError as e:
-        _print_error(e, stderr=s.stderr)
-        return EXIT_USAGE
+        return _main_fail(e, stderr=s.stderr, code=EXIT_USAGE)
 
     try:
         return _convert_and_write_scenario(args, stream, streams=s)
