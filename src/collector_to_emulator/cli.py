@@ -58,17 +58,21 @@ def open_jsonl_source(args: argparse.Namespace) -> tuple[TextIO, bool]:
     )
 
 
-def run() -> None:
-    __version__: str = version("collector-to-emulator")
-
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
+def build_parser(*, pkg_version: str | None = None) -> argparse.ArgumentParser:
+    """CLI argument definitions. ``pkg_version`` defaults to installed package
+    metadata."""
+    v = (
+        pkg_version
+        if pkg_version is not None
+        else version("collector-to-emulator")
+    )
+    parser = argparse.ArgumentParser(
         prog="collector-to-emulator",
         description="convert kafka-collector output into kafka-emulator "
         "config",
     )
-
     parser.add_argument(
-        "-v", "--version", action="version", version=f"%(prog)s {__version__}"
+        "-v", "--version", action="version", version=f"%(prog)s {v}"
     )
     parser.add_argument(
         "-i",
@@ -146,8 +150,11 @@ def run() -> None:
         metavar="JSONL",
         help="JSONL file (if stdin is a TTY and -i omitted)",
     )
+    return parser
 
-    args = parser.parse_args()
+
+def run() -> None:
+    args = build_parser().parse_args()
 
     if args.sleep_round_ms < 1:
         print_to_stderr_and_exit(

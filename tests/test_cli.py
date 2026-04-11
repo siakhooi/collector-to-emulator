@@ -4,9 +4,27 @@ import sys
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
-from collector_to_emulator.cli import run
+from collector_to_emulator.cli import build_parser, run
 
 import pytest
+
+
+def test_build_parser_prog_and_parsed_args() -> None:
+    p = build_parser(pkg_version="9.9.9")
+    assert p.prog == "collector-to-emulator"
+    args = p.parse_args(["-g", "999", "in.jsonl"])
+    assert args.sleep_gap_ms == 999
+    assert args.jsonl == "in.jsonl"
+    assert args.sleep_round_ms == 1
+
+
+@pytest.mark.parametrize("opt", ["-v", "--version"])
+def test_build_parser_version_uses_pkg_version(capsys, opt: str) -> None:
+    p = build_parser(pkg_version="0.test.0")
+    with pytest.raises(SystemExit) as exc_info:
+        p.parse_args([opt])
+    assert exc_info.value.code == 0
+    assert capsys.readouterr().out == "collector-to-emulator 0.test.0\n"
 
 
 @pytest.fixture(autouse=True)
