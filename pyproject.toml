@@ -1,6 +1,6 @@
 [project]
 name = "collector_to_emulator"
-version = "0.3.0"
+version = "1.0.0"
 description = "Convert kafka-collector JSONL output into kafka-emulator scenario YAML"
 authors = [
     {name = "Siak Hooi",email = "siakhooi@gmail.com"}
@@ -15,7 +15,7 @@ keywords = [
     "testing",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",

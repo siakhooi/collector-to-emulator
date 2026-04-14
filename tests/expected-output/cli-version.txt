@@ -1,1 +1,1 @@
-collector-to-emulator 0.3.0
+collector-to-emulator 1.0.0
