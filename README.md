@@ -1,6 +1,27 @@
 # collector-to-emulator
 convert kafka-collector jsonl output into kafka-emulator scenario yaml.
 
+**collector-to-emulator** is the **second step** in a three-tool chain: it converts **JSONL** captures produced by **[kafka-collector](https://github.com/siakhooi/kafka-collector)** into artifacts/config usable by **[kafka-emulator](https://github.com/siakhooi/kafka-emulator)**. Expect a manual review/edit pass before replaying to dev Kafka.
+
+## Related repositories (recommended workflow)
+
+This project works best **in sequence** with:
+
+| Step  | Repository                                                     | Role                                                                  |
+| ----- | -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **1** | [kafka-collector](https://github.com/siakhooi/kafka-collector) | Collect messages from Kafka topics (CLI + microservice).              |
+| **2** | **collector-to-emulator** (this repo)                          | Convert collected **JSONL** into files/config usable by the emulator. |
+| **3** | [kafka-emulator](https://github.com/siakhooi/kafka-emulator)   | Produce the configured messages onto Kafka (e.g. dev).                |
+
+**Typical flow**
+
+1. Use **kafka-collector** to capture traffic from the topics you care about.
+2. Use **collector-to-emulator** to generate an **emulator configuration** from those captures.
+3. **Edit the config** as needed (secrets, ordering, scenarios, gaps).
+4. Use **kafka-emulator** to **replay** messages to your target Kafka.
+
+Together: **collect → convert → curate → replay**. For flags, modes, and deployment, see the sections below and [Documentation](#documentation).
+
 ## Installation
 ```
 pip install collector_to_emulator
