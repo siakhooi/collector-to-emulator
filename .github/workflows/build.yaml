@@ -1,11 +1,11 @@
 name: Build
 on:
-  pull_request:
-    branches:
-      - "*"
   push:
     branches:
-      - "*"
+      - "**"
+  pull_request:
+    branches:
+      - "**"
   workflow_call:
     secrets:
       SONAR_TOKEN:
